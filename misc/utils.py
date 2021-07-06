@@ -64,7 +64,7 @@ def generateHeatmapsFromKeypoints(dims, keypoints, num_keypoints, len_kernel=11,
 # Written by Bin Xiao (Bin.Xiao@microsoft.com)
 # ------------------------------------------------------------------------------
 
-def generate_target(joints, numKeypoints):
+def generate_target(joints, numKeypoints, hSize, iSize):
     '''
     :param joints:  [num_joints, 3]
     :param joints_vis: [num_joints, 3]
@@ -73,8 +73,8 @@ def generate_target(joints, numKeypoints):
     #target_weight = np.ones((self.num_joints, 1), dtype=np.float32)
     #target_weight[:, 0] = joints_vis[:, 0]
     sigma = 2#cfg.MODEL.SIGMA
-    heatmapSize = np.array([64, 64])
-    imgSize = np.array([256, 256])
+    heatmapSize = np.array([hSize, hSize])
+    imgSize = np.array([iSize, iSize])
 
 
     

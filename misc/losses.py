@@ -7,11 +7,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class LossComputer():
-    def __init__(self, numFrames, numKeypoints, dimsWidthHeight, device):
+    def __init__(self, numFrames, numKeypoints, heatmapSize, imgSize, device):
         self.numFrames = numFrames
         self.numKeypoints = numKeypoints
         self.device = device
-        self.dimsWidthHeight = dimsWidthHeight
+        self.heatmapSize = heatmapSize
+        self.imgSize = imgSize
         self.mse = nn.MSELoss()
         self.bce = nn.BCELoss()
     
@@ -23,7 +24,7 @@ class LossComputer():
                 # self-designed generation of heatmap
                 #heatmap = generateHeatmapsFromKeypoints(self.dimsWidthHeight, gt[i][j], self.numKeypoints)
                 # adopted from other implementation
-                heatmap = generate_target(gt[i][j], self.numKeypoints)
+                heatmap = generate_target(gt[i][j], self.numKeypoints, self.heatmapSize, self.imgSize)
                 
                 # temp = np.max(heatmap, axis = 0)
                 # fig = plt.figure(figsize=(10, 7))
@@ -44,7 +45,7 @@ class LossComputer():
         #gt: (batch, num_frames, num_joints, 2)
         for i in range(len(gt)):
             for j in range(self.numFrames):               
-                heatmap = generate_target(gt[i][j], self.numKeypoints)
+                heatmap = generate_target(gt[i][j], self.numKeypoints, self.heatmapSize, self.imgSize)
                 heatmaps[i, :, j] = torch.tensor(heatmap)
         #loss = self.bce(preds, torch.sigmoid(heatmaps.to(self.device))) * 10
         loss = self.bce(preds, heatmaps.to(self.device)) * 10
@@ -54,7 +55,7 @@ class LossComputer():
         heatmaps = torch.zeros_like(preds)
         #gt: (batch, num_frames, num_joints, 2)
         for i in range(len(gt)):
-            heatmap = generate_target(gt[i], self.numKeypoints)
+            heatmap = generate_target(gt[i], self.numKeypoints, self.heatmapSize, self.imgSize)
             heatmaps[i, :] = torch.tensor(heatmap)
         #print(preds.size(), heatmaps.size())
         loss = self.mse(preds, heatmaps.to(self.device)) * 10
@@ -64,7 +65,7 @@ class LossComputer():
         heatmaps = torch.zeros_like(preds)
         #gt: (batch, num_frames, num_joints, 2)
         for i in range(len(gt)):
-            heatmap = generate_target(gt[i], self.numKeypoints)
+            heatmap = generate_target(gt[i], self.numKeypoints, self.heatmapSize, self.imgSize)
             heatmaps[i, :] = torch.tensor(heatmap)
         #print(preds.size(), heatmaps.size())
         #loss = self.bce(preds, torch.sigmoid(heatmaps.to(self.device))) * 10

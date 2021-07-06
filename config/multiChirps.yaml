@@ -1,0 +1,20 @@
+DATASET:
+    upsamplingFactor: 8 # from heatmaps (64 x 64) to RGB (512 x 512)
+    duration: 1800
+    heatmapSize: 64
+    imgSize: 512
+    rangeSize: 64
+    azimuthSize: 8
+    numKeypoints: 16
+    numFrames: 16
+    numGroupFrames: 30
+    mode: "multiChirps"
+    dataDir: "../processed_data/iwr1642/20210628"
+MODEL:
+    numFilters: 16
+LOGGER:
+    idxToJoints:
+        ["Head", "Neck", "RightShoulder", "RightElbow", "RightWrist", 
+         "LeftShoulder", "LeftElbow", "LeftWrist", "RightHip", "RightKnee", 
+         "RightAnkle", "LeftHip", "LeftKnee", "LeftAnkle", "Chest", "Pelvis"]
+    intervalEval: 5

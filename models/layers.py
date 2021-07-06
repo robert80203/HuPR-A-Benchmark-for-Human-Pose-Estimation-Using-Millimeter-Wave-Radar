@@ -8,13 +8,13 @@ class Identity(nn.Module):
         return x
 
 class ResidualBlock3D(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0, dilation=1):
         super(ResidualBlock3D, self).__init__()
         self.main = nn.Sequential(
-            nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding),
+            nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding, dilation),
             nn.BatchNorm3d(out_channels),
             nn.ReLU(),
-            nn.Conv3d(out_channels, out_channels, kernel_size, stride, padding),
+            nn.Conv3d(out_channels, out_channels, kernel_size, stride, padding, dilation),
             nn.BatchNorm3d(out_channels),
             nn.ReLU()
         )

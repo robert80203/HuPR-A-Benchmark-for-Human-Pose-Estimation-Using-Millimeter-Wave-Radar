@@ -10,14 +10,14 @@ IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG',
 
 
 class BaseDataset(data.Dataset):
-    def __init__(self, dataDir, phase, resizeShape, cropShape):
+    def __init__(self, dataDir, phase):
         if phase not in ('train', 'val', 'test'):
             raise ValueError('Invalid phase: {}'.format(phase))
 
         super(BaseDataset, self).__init__()
         self.dataDir = dataDir
-        self.resizeShape = resizeShape
-        self.cropShape = cropShape
+        #self.resizeShape = resizeShape
+        #self.cropShape = cropShape
         self.phase = phase
         self.transformFunc = self.getTransformFunc()
 

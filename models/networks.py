@@ -65,18 +65,62 @@ class RODNetSkipConnections(nn.Module):
         heatmaps = self.toHeatmap(output).unsqueeze(2)
         return heatmaps
 
+class TemporalModel(nn.Module):
+    def __init__(self, cfg):
+        super(TemporalModel, self).__init__()
+        self.numFrames = cfg.DATASET.numFrames
+        self.numFilters = cfg.MODEL.numFilters
+        self.width = cfg.DATASET.heatmapSize
+        self.height = cfg.DATASET.heatmapSize
+        
+        
+        self.conv0 = nn.Sequential(
+            nn.Upsample(size=(self.numFrames, self.height, self.width//4), mode='trilinear', align_corners=True),
+            ResidualBlock3D(self.numFilters, self.numFilters, (3, 3, 3), (1, 1, 1), (1, 1, 1)),
+        )
+        self.conv1 = nn.Sequential(
+            nn.Upsample(size=(self.numFrames, self.height, self.width//2), mode='trilinear', align_corners=True),
+            ResidualBlock3D(self.numFilters, self.numFilters, (3, 3, 3), (1, 1, 1), (1, 1, 1)),
+        )
+        self.conv1_dilated_2 = nn.Sequential(
+            nn.Upsample(size=(self.numFrames, self.height, self.width//2), mode='trilinear', align_corners=True),
+            ResidualBlock3D(self.numFilters, self.numFilters, (3, 3, 3), (1, 1, 1), (2, 1, 1), (2, 1, 1)),
+        )
+        self.conv1_dilated_4 = nn.Sequential(
+            nn.Upsample(size=(self.numFrames, self.height, self.width//2), mode='trilinear', align_corners=True),
+            ResidualBlock3D(self.numFilters, self.numFilters, (3, 3, 3), (1, 1, 1), (4, 1, 1), (4, 1, 1)),
+        )
+        self.conv2 = nn.Sequential(
+            nn.Upsample(size=(self.numFrames, self.height, self.width), mode='trilinear', align_corners=True),
+            ResidualBlock3D(self.numFilters*3, self.numFilters, (1, 1, 1), (1, 1, 1), (0, 0, 0)),
+            nn.Conv3d(self.numFilters, self.numFilters, (self.numFrames, 1, 1), (1, 1, 1), (0, 0, 0)),
+        )
+    def forward(self, maps):
+        #print(maps.size())
+        maps = self.conv0(maps)
+        #print(maps.size())
+        maps1 = self.conv1(maps)
+        maps1_2 = self.conv1_dilated_2(maps)
+        maps1_4 = self.conv1_dilated_4(maps)
+        #print(maps1.size(), maps1_2.size())
+        output = self.conv2(torch.cat((maps1, maps1_2, maps1_4), 1)).squeeze(2)
+        #print(output.size())
+        return output
+    
 class BaseModel(nn.Module):
-    def __init__(self, numFrames, numKeypoints, dimsWidthHeight, mode):
+    def __init__(self, cfg):
         super(BaseModel, self).__init__()
-        self.numFrames = numFrames
-        self.numKeypoints = numKeypoints
-        self.width = dimsWidthHeight[0]
-        self.height = dimsWidthHeight[1]
-        self.numFilters = 16 #32 is the old version value
-        self.mode = mode
-        #self.extractor = Identity()
-        #for (75, 64, 8) input, padding = (4, 34, 6)
-        if mode == 'multiFrames':
+        self.numFrames = cfg.DATASET.numFrames
+        self.numGroupFrames = cfg.DATASET.numGroupFrames
+        self.numKeypoints = cfg.DATASET.numKeypoints
+        self.rangeSize = cfg.DATASET.rangeSize
+        self.azimuthSize = cfg.DATASET.azimuthSize
+        self.width = cfg.DATASET.heatmapSize
+        self.height = cfg.DATASET.heatmapSize
+        self.numFilters = cfg.MODEL.numFilters #32 is the old version value
+        self.mode = cfg.DATASET.mode
+        '''
+        if self.mode == 'multiFrames':
             self.encoderHoriMap = nn.Sequential(
                 nn.Upsample(size=(self.numFrames, self.height, self.width//4), mode='trilinear'),
                 ResidualBlock3D(2, self.numFilters, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
@@ -101,33 +145,14 @@ class BaseModel(nn.Module):
                 #nn.ReLU() #use relu in 06/22 version
                 nn.Sigmoid()
             )
-        elif mode == 'multiChirps':
-            # self.encoderHoriMap = nn.Sequential(
-            #     nn.Upsample(size=(self.numFrames//2, self.height, self.width//4), mode='trilinear'),
-            #     ResidualBlock3D(2, self.numFilters, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-            #     nn.Upsample(size=(self.numFrames//2, self.height, self.width//2), mode='trilinear'),
-            #     ResidualBlock3D(self.numFilters, self.numFilters*2, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-            #     nn.Upsample(size=(self.numFrames//4, self.height, self.width), mode='trilinear'),
-            #     ResidualBlock3D(self.numFilters*2, self.numFilters*4, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-            # )
-            # self.encoderVertMap = nn.Sequential(
-            #     nn.Upsample(size=(self.numFrames//2, self.height, self.width//4), mode='trilinear'),
-            #     ResidualBlock3D(2, self.numFilters, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-            #     nn.Upsample(size=(self.numFrames//2, self.height, self.width//2), mode='trilinear'),
-            #     ResidualBlock3D(self.numFilters, self.numFilters*2, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-            #     nn.Upsample(size=(self.numFrames//4, self.height, self.width), mode='trilinear'),
-            #     ResidualBlock3D(self.numFilters*2, self.numFilters*4, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-            # )
-            # self.decoder = nn.Sequential(
-            #     ResidualBlock3D(self.numFilters*4, self.numFilters*4, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-            #     nn.Upsample(size=(self.numFrames//4, self.height, self.width), mode='trilinear'),
-            #     ResidualBlock3D(self.numFilters*4, self.numFilters*2, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-            #     nn.Upsample(size=(self.numFrames//8, self.height, self.width), mode='trilinear'),
-            #     ResidualBlock3D(self.numFilters*2, self.numFilters, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-            #     nn.Upsample(size=(self.numFrames//16, self.height, self.width), mode='trilinear'),
-            #     nn.Conv3d(self.numFilters, self.numKeypoints, 1, 1, 0),
-            #     nn.Sigmoid()
-            # )
+        '''
+        if self.mode == 'multiFramesChirps':
+            self.encoderHoriMap = TemporalModel(cfg)
+            self.encoderVertMap = TemporalModel(cfg)
+            self.decoder = RODNetSkipConnections(self.numKeypoints, self.numFilters)
+            self.mnet = MNet(self.numFrames, self.numFilters)
+            self.temporalMaxpool = nn.MaxPool3d((self.numGroupFrames, 1, 1), (self.numGroupFrames, 1, 1))
+        elif self.mode == 'multiChirps':
             self.encoderHoriMap = nn.Sequential(
                 nn.Upsample(size=(self.height, self.width//4), mode='bilinear', align_corners=True),
                 ResidualBlock2D(self.numFilters, self.numFilters, (3, 3), (1, 1), (1, 1)),
@@ -148,13 +173,33 @@ class BaseModel(nn.Module):
             self.mnet = MNet(self.numFrames, self.numFilters)            
 
     def forward(self, horiMap, vertMap):
-        horiMap = horiMap.permute(0, 2, 1, 3, 4)
-        vertMap = vertMap.permute(0, 2, 1, 3, 4)
+        
         if self.mode == 'multiChirps':
+            horiMap = horiMap.permute(0, 2, 1, 3, 4) # (b, channel=2, # of chirps=16, 64, 8)
+            vertMap = vertMap.permute(0, 2, 1, 3, 4)
             horiMap = self.mnet(horiMap).squeeze(2)
             vertMap = self.mnet(vertMap).squeeze(2)
-        horiMap = self.encoderHoriMap(horiMap)
-        vertMap = self.encoderVertMap(vertMap)
+            horiMap = self.encoderHoriMap(horiMap)
+            vertMap = self.encoderVertMap(vertMap)
+        elif self.mode == 'multiFramesChirps':
+            batchSize = horiMap.size(0)
+            horiMap = horiMap.permute(0, 1, 3, 2, 4, 5) # (b, # of frames=30, channel=2, # of chirps=16, 64, 8)
+            vertMap = vertMap.permute(0, 1, 3, 2, 4, 5)
+            #print(horiMap.size())
+            horiMap = horiMap.view(batchSize * self.numGroupFrames, 2, self.numFrames, self.rangeSize, self.azimuthSize)
+            vertMap = vertMap.view(batchSize * self.numGroupFrames, 2, self.numFrames, self.rangeSize, self.azimuthSize)
+            horiMap = self.mnet(horiMap).view(batchSize, self.numGroupFrames, -1, self.rangeSize, self.azimuthSize)
+            vertMap = self.mnet(vertMap).view(batchSize, self.numGroupFrames, -1, self.rangeSize, self.azimuthSize)
+            horiMap = horiMap.permute(0, 2, 1, 3, 4) # (b, channel=2, # of frames=30, 64, 8)
+            vertMap = vertMap.permute(0, 2, 1, 3, 4)
+            ####
+            #horiMap = self.temporalMaxpool(horiMap).squeeze(2)
+            #vertMap = self.temporalMaxpool(vertMap).squeeze(2)
+            ####
+            horiMap = self.encoderHoriMap(horiMap)
+            vertMap = self.encoderVertMap(vertMap)
+            ####
+        
         #fusedMap = self.decoder(horiMap + vertMap) # old version, multiFrames and multiChirps
         fusedMap = self.decoder(torch.cat((horiMap, vertMap), 1))
         return fusedMap

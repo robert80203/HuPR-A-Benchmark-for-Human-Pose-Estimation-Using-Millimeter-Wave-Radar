@@ -89,13 +89,15 @@ def accuracy(output, target, hm_type='gaussian', thr=0.5):
     cnt = 0
 
     for i in range(len(idx)):
-        acc[i + 1] = dist_acc(dists[idx[i]])
-        if acc[i + 1] >= 0:
-            avg_acc = avg_acc + acc[i + 1]
+        #acc[i + 1] = dist_acc(dists[idx[i]])
+        accTmp = dist_acc(dists[idx[i]])
+        if accTmp >= 0:
+            acc[i + 1] += accTmp
+            avg_acc = avg_acc + accTmp
             cnt += 1
 
     #avg_acc = avg_acc / cnt if cnt != 0 else 0
     #if cnt != 0:
     #    acc[0] = avg_acc
     #return acc, avg_acc, cnt, pred
-    return avg_acc, cnt, pred, target
+    return avg_acc, acc, cnt, pred, target

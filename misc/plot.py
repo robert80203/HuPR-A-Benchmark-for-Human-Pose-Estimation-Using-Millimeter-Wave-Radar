@@ -20,7 +20,7 @@ def plotHumanPose(heatmaps, visDir, idx):
 
 def plotHumanPoseRGBWithGT(preds, heatmapsGT, visDir, idx, upsamplingSize=(128, 128)):
     
-    rgbPath = '../frames/20210609/single_6/processed/images/' + ('%09d.jpg' % idx)
+    rgbPath = '../frames/20210628/single_1/processed/images/' + ('%09d.jpg' % idx)
     rgbImg = Image.open(rgbPath).convert('RGB')
     transforms_fn = transforms.Compose([
         transforms.Resize(upsamplingSize),
