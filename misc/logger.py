@@ -32,7 +32,7 @@ class Logger():
     def showAccTable(self, numKeypoints, idxToJoints):
         print('----------------------------------------------------')
         for idx in range(numKeypoints):
-            print('%s: %.3f\t\t' %(idxToJoints[idx], self.accTable[idx+1]/self.totalCnt*numKeypoints), end='')
+            print('%s:\t%.3f\t' %(idxToJoints[idx], self.accTable[idx+1]/self.totalCnt*numKeypoints), end='')
             if (idx + 1) % 3 == 0:
                 print('')
         print('\n----------------------------------------------------')

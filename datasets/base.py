@@ -8,6 +8,21 @@ import json
 IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG',
                   '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP', '.npy', '.txt']
 
+class Normalize(object):
+    def __init__(self, std_mean=False):
+        self.std_mean = std_mean
+    def __call__(self, radarData):
+        assert len(radarData.size()) == 3, 'input shape must be 3D'
+        c = radarData.size(0)
+        minValues = torch.min(radarData.view(c, -1), 1)[0].view(c, 1, 1)
+        radarDataZero = radarData - minValues
+        maxValues = torch.max(radarDataZero.view(c, -1), 1)[0].view(c, 1, 1)
+        radarDataNorm = radarDataZero / maxValues
+        if self.std_mean:
+            std, mean = torch.std_mean(radarDataNorm.view(c, -1), 1)
+            return (radarDataNorm - mean) / std
+        else:
+            return radarDataNorm
 
 class BaseDataset(data.Dataset):
     def __init__(self, dataDir, phase):
@@ -24,22 +39,16 @@ class BaseDataset(data.Dataset):
     def getTransformFunc(self):
         if self.phase == 'train':
             transformFunc = transforms.Compose([
-                #transforms.Resize(self.resize_shape),
-                #transforms.RandomHorizontalFlip(p=0.5),
-                #transforms.RandomVerticalFlip(p=0.5),
-                #transforms.CenterCrop(self.crop_shape),
-                transforms.ToTensor()
-                #transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                transforms.ToTensor(),
+                Normalize(std_mean=True)
             ])
         else:
             transformFunc = transforms.Compose([
-                #transforms.Resize(self.resize_shape),
-                #transforms.CenterCrop(self.crop_shape),
-                transforms.ToTensor()
-                #transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                transforms.ToTensor(),
+                Normalize(std_mean=True)
             ])
         return transformFunc
-
+    
     def isImageFile(self, filename):
         return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
@@ -47,7 +56,7 @@ class BaseDataset(data.Dataset):
         images = []
         for dirName in dirGroup:
             for frame in frameGroup:
-                path = os.path.join(dataDir, dirName, mode, frame + '.txt')
+                path = os.path.join(dataDir, dirName, mode, frame + '.npy')
                 images.append(path)
         return images
 

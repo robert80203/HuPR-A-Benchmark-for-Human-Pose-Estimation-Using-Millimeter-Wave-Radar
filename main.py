@@ -15,12 +15,12 @@ class obj(object):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batchSize', type=int, default=1, metavar='N',
-                        help='input batch size for training (default: 1)')
-    parser.add_argument('--epochs', type=int, default=200, metavar='N',
-                        help='number of epochs to train (default: 200)')
-    parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
-                        help='learning rate (default: 0.001)')
+    #parser.add_argument('--batchSize', type=int, default=1, metavar='N',
+    #                    help='input batch size for training (default: 1)')
+    #parser.add_argument('--epochs', type=int, default=200, metavar='N',
+    #                    help='number of epochs to train (default: 200)')
+    #parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
+    #                    help='learning rate (default: 0.001)')
     parser.add_argument('--seed', type=int, default=0, metavar='S',
                         help='random seed (default: 0)')
     parser.add_argument('--saveDir', type=str, default='test', metavar='B',
@@ -33,7 +33,7 @@ if __name__ == "__main__":
                         help='directory of visualization')
     #parser.add_argument('--dataset', type=str, default='multiChirps', help='multiFrames/multiChirps', metavar='B')
     parser.add_argument('--gpuIDs', default=[0], type=eval, help='IDs of GPUs to use')                        
-    parser.add_argument('--numWorkers', default=2, type=int, help='Number of data loader threads')
+    #parser.add_argument('--numWorkers', default=2, type=int, help='Number of data loader threads')
     #parser.add_argument('--dataDir', type=str, default='./data/20210628', help='Path to data directory.')
     parser.add_argument('--eval', action="store_true")
     parser.add_argument('--debug', action="store_true")

@@ -69,5 +69,7 @@ class LossComputer():
             heatmaps[i, :] = torch.tensor(heatmap)
         #print(preds.size(), heatmaps.size())
         #loss = self.bce(preds, torch.sigmoid(heatmaps.to(self.device))) * 10
-        loss = self.bce(preds, heatmaps.to(self.device)) * 10
+        #print(preds.min(), preds.max())
+        #print(heatmaps.min(), heatmaps.max())
+        loss = self.bce(preds, heatmaps.to(self.device))
         return loss, heatmaps
