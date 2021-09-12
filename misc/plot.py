@@ -49,19 +49,12 @@ def assignRGBcolor(pred, gt):
 def plotHumanPoseRGBWithGT(preds, heatmapsGT, isEval, cfg,
                            visDir, idx, upsamplingSize=(128, 128)):
 
-    # if isEval:    
-    #     rgbPath = '../frames/20210712/single_1/processed/images/' + ('%09d.jpg' % idx)
-    # else:
-    #     rgbPath = '../frames/20210712/single_18/processed/images/' + ('%09d.jpg' % idx)
-    
-    # if isEval:    
-    #      rgbPath = '../frames/20210722/single_1/processed/images/' + ('%09d.jpg' % idx)
-    # else:
-    #      rgbPath = '../frames/20210722/single_15/processed/images/' + ('%09d.jpg' % idx)
-
     # only plot 1 specific images of a directory
+    # rgbPath = os.path.join('../frames', cfg.LOGGER.plotImgDir, 
+    #                         cfg.DATASET.testName[0] if isEval else cfg.DATASET.valName[0], 
+    #                         'processed/images', '%09d.jpg' % idx)
     rgbPath = os.path.join('../frames', cfg.LOGGER.plotImgDir, 
-                            cfg.DATASET.testName[0] if isEval else cfg.DATASET.valName[0], 
+                            cfg.DATASET.testName[0][0] if isEval else cfg.DATASET.valName[0][0], 
                             'processed/images', '%09d.jpg' % idx)
 
 

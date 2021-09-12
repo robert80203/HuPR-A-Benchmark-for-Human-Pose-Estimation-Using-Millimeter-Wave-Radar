@@ -67,21 +67,29 @@ def dist_acc(dists, thr=0.5):#thr=0.5
         return -1
 
 
-def accuracy(output, target, hm_type='gaussian', thr=0.5):
+def accuracy(preds, GTs, modelType='heatmap', thr=0.5):
     '''
     Calculate accuracy according to PCK,
     but uses ground truth heatmap rather than x,y locations
     First value to be returned is average accuracy across 'idxs',
     followed by individual accuracies
     '''
+    output, kypts = preds
+    target, gtKypts = GTs
+    output = output.detach().cpu().numpy()
+    target = target.detach().cpu().numpy()
     idx = list(range(output.shape[1]))
     norm = 1.0
-    if hm_type == 'gaussian':
+    if modelType == 'heatmap':
         pred, _ = get_max_preds(output)
         target, _ = get_max_preds(target)
-        h = output.shape[2]
-        w = output.shape[3]
-        norm = np.ones((pred.shape[0], 2)) * np.array([h, w]) / 10
+    elif modelType == 'regression':
+        pred = kypts.detach().cpu().ceil().numpy()
+        target = gtKypts.detach().cpu().ceil().numpy()
+    h = output.shape[2]
+    w = output.shape[3]
+    norm = np.ones((pred.shape[0], 2)) * np.array([h, w]) / 10
+    #print(pred, target)
     dists = calc_dists(pred, target, norm)
 
     acc = np.zeros((len(idx) + 1))

@@ -23,15 +23,37 @@ class BaseTrainer():
         self.loadDir = './logs/' + args.loadDir
         self.args = args
         self.cfg = cfg
-        
+        self.heatmapSize = self.width = self.height = self.cfg.DATASET.heatmapSize
+        self.imgSize = self.imgWidth = self.imgHeight = self.cfg.DATASET.imgSize
+        self.numKeypoints = self.cfg.DATASET.numKeypoints
+        self.dimsWidthHeight = (self.width, self.height)
+        self.start_epoch = 0
+        #self.global_step = 0
+        self.DEBUG = args.debug
+        self.mode = self.cfg.DATASET.mode
+        self.numFrames = self.cfg.DATASET.numFrames
+        self.modelType = self.cfg.MODEL.type
+
     def initialize(self):
-        self.lossComputer = LossComputer(self.numFrames, self.numKeypoints, self.heatmapSize, self.imgSize, self.device)
+        self.lossComputer = LossComputer(self.cfg, self.device)
         self.logger = Logger()
         if not os.path.isdir(self.saveDir):
             os.mkdir(self.saveDir)
         if not os.path.isdir(self.visDir):
             os.mkdir(self.visDir)
+        if not self.args.eval:
+            print('==========>Train set size:', len(self.trainLoader))
+        print('==========>Test set size:', len(self.testLoader))
     
+    def adjustLR(self, epoch):
+        if epoch < self.cfg.TRAINING.warmupEpoch:
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] *= self.cfg.TRAINING.warmupGrowth
+        else:
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] *= self.cfg.TRAINING.lrDecay
+
+
     def saveModelWeight(self, epoch):
         saveGroup = {
             'epoch': epoch,

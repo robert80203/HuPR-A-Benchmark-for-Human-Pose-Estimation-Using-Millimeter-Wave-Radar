@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from models.layers import *
 import torchvision.models as models
+from models.layers import Identity, BasicBlock2D, BasicBlock3D, Block2D, DeconvBlock2D
+from models.transformer import Transformer, ResNetBackbone, PositionEmbeddingLearned, Joiner, MLP
+
 
 class MNet(nn.Module):
     def __init__(self, numFrames, numFilters):
@@ -102,136 +104,52 @@ class RODNetSkipConnections(nn.Module):
         heatmaps = self.toHeatmap(output).unsqueeze(2)
         return heatmaps
 
-class TemporalModelV4(nn.Module):
-    def __init__(self, cfg):
-        super(TemporalModelV4, self).__init__()
-        #self.numFrames = cfg.DATASET.numFrames
-        self.numGroupFrames = cfg.DATASET.numGroupFrames # for 60
-        self.numFilters = cfg.MODEL.numFilters
-        self.width = cfg.DATASET.heatmapSize
-        self.height = cfg.DATASET.heatmapSize
-        self.main = nn.Sequential(
-            Block3D(self.numFilters, self.numFilters*2, (9, 5, 5), (4, 2, 2), (4, 2, 2)),
-            Block3D(self.numFilters*2, self.numFilters*4, (9, 5, 5), (4, 2, 2), (4, 2, 2)),
-            Block3D(self.numFilters*4, self.numFilters*16, (9, 5, 5), (4, 2, 2), (4, 2, 2)),
-        )
-    def forward(self, maps):
-        return self.main(maps).squeeze(2)
-
-class TemporalModelV3(nn.Module):
-    def __init__(self, cfg):
-        super(TemporalModelV3, self).__init__()
-        #self.numFrames = cfg.DATASET.numFrames
-        self.numGroupFrames = cfg.DATASET.numGroupFrames # for 60
-        self.numFilters = cfg.MODEL.numFilters
-        self.width = cfg.DATASET.heatmapSize
-        self.height = cfg.DATASET.heatmapSize
-        self.conv1 = nn.Sequential(
-            nn.Upsample(size=(self.numGroupFrames, self.height, self.width), mode='trilinear', align_corners=True),
-            nn.Conv3d(self.numFilters, self.numFilters*2, (3, 3, 3), (3, 1, 1), (0, 1, 1), (2, 1, 1)),
-            nn.BatchNorm3d(self.numFilters*2),
-            nn.ReLU(),
-        )
-        self.conv2 = nn.Sequential(
-            nn.Upsample(size=(19, self.height//2, self.width//2), mode='trilinear', align_corners=True),
-            nn.Conv3d(self.numFilters*2, self.numFilters*4, (3, 3, 3), (3, 1, 1), (0, 1, 1), (2, 1, 1)),
-            nn.BatchNorm3d(self.numFilters*4),
-            nn.ReLU(),
-            #ResidualBlock3D(self.numFilters, self.numFilters, (3, 3, 3), (1, 1, 1), (2, 1, 1), (2, 1, 1)),
-        )
-        self.conv3 = nn.Sequential(
-            nn.Upsample(size=(5, self.height//4, self.width//4), mode='trilinear', align_corners=True),
-            nn.Conv3d(self.numFilters*4, self.numFilters*8, (5, 3, 3), (1, 1, 1), (0, 1, 1), (1, 1, 1)),
-            nn.BatchNorm3d(self.numFilters*8),
-            nn.ReLU(),
-        )
-    def forward(self, maps):
-        #print('0', maps.size())
-        maps = self.conv1(maps)
-        #print('conv1', maps.size())
-        maps = self.conv2(maps)
-        #print('conv2', maps.size())
-        maps = self.conv3(maps)
-        #print('conv3', maps.size())
-        return maps.squeeze(2)
-
-class TemporalModelV2(nn.Module):
-    def __init__(self, cfg):
-        super(TemporalModelV2, self).__init__()
-        #self.numFrames = cfg.DATASET.numFrames
-        self.numGroupFrames = cfg.DATASET.numGroupFrames # for 60
-        self.numFilters = cfg.MODEL.numFilters
-        self.width = cfg.DATASET.heatmapSize
-        self.height = cfg.DATASET.heatmapSize
-        self.conv1 = nn.Sequential(
-            nn.Upsample(size=(self.numGroupFrames, self.height, self.width//4), mode='trilinear', align_corners=True),
-            nn.Conv3d(self.numFilters, self.numFilters*2, (3, 3, 3), (3, 1, 1), (0, 1, 1), (2, 1, 1)),
-            nn.BatchNorm3d(self.numFilters*2),
-            nn.ReLU(),
-        )
-        self.conv2 = nn.Sequential(
-            nn.Upsample(size=(19, self.height, self.width//2), mode='trilinear', align_corners=True),
-            nn.Conv3d(self.numFilters*2, self.numFilters*2, (3, 3, 3), (3, 1, 1), (0, 1, 1), (2, 1, 1)),
-            nn.BatchNorm3d(self.numFilters*2),
-            nn.ReLU(),
-            #ResidualBlock3D(self.numFilters, self.numFilters, (3, 3, 3), (1, 1, 1), (2, 1, 1), (2, 1, 1)),
-        )
-        self.conv3 = nn.Sequential(
-            nn.Upsample(size=(5, self.height, self.width), mode='trilinear', align_corners=True),
-            nn.Conv3d(self.numFilters*2, self.numFilters, (5, 3, 3), (1, 1, 1), (0, 1, 1), (1, 1, 1)),
-            nn.BatchNorm3d(self.numFilters),
-            nn.ReLU(),
-        )
-    def forward(self, maps):
-        #print('0', maps.size())
-        maps = self.conv1(maps)
-        #print('conv1', maps.size())
-        maps = self.conv2(maps)
-        #print('conv2', maps.size())
-        maps = self.conv3(maps)
-        #print('conv3', maps.size())
-        return maps.squeeze(2)
-        
 class TemporalModel(nn.Module):
     def __init__(self, cfg):
         super(TemporalModel, self).__init__()
-        self.numFrames = cfg.DATASET.numFrames
+        #self.numFrames = cfg.DATASET.numFrames
+        self.numGroupFrames = cfg.DATASET.numGroupFrames # for 60
         self.numFilters = cfg.MODEL.numFilters
         self.width = cfg.DATASET.heatmapSize
         self.height = cfg.DATASET.heatmapSize
-        
-        self.conv0 = nn.Sequential(
-            nn.Upsample(size=(self.numFrames, self.height, self.width//4), mode='trilinear', align_corners=True),
-            ResidualBlock3D(self.numFilters, self.numFilters, (3, 3, 3), (1, 1, 1), (1, 1, 1)),
+        # self.conv1 = nn.Sequential(
+        #     #nn.Upsample(size=(self.numGroupFrames, self.height, self.width), mode='trilinear', align_corners=True),
+        #     #nn.Upsample(scale_factor=0.5, mode='trilinear', align_corners=True),
+        #     #nn.Conv3d(self.numFilters, self.numFilters*2, (3, 3, 3), (3, 1, 1), (0, 1, 1), (2, 1, 1)),
+        #     nn.Conv3d(self.numFilters, self.numFilters*2, 3, 1, 1, 1),
+        #     nn.BatchNorm3d(self.numFilters*2),
+        #     nn.ReLU(),
+        # )
+        # self.conv2 = nn.Sequential(
+        #     #nn.Upsample(size=(19, self.height//2, self.width//2), mode='trilinear', align_corners=True),
+        #     nn.Upsample(scale_factor=0.5, mode='trilinear', align_corners=True),
+        #     nn.Conv3d(self.numFilters*2, self.numFilters*4, 3, 1, 1, 1),
+        #     nn.BatchNorm3d(self.numFilters*4),
+        #     nn.ReLU(),
+        # )
+        # self.conv3 = nn.Sequential(
+        #     #nn.Upsample(size=(5, self.height//4, self.width//4), mode='trilinear', align_corners=True),
+        #     nn.Upsample(scale_factor=0.5, mode='trilinear', align_corners=True),
+        #     nn.Conv3d(self.numFilters*4, self.numFilters*8, 3, 1, 1, 1),
+        #     nn.BatchNorm3d(self.numFilters*8),
+        #     nn.ReLU(),
+        # )
+        self.main = nn.Sequential(
+            BasicBlock3D(self.numFilters, self.numFilters*2, 3, 1, 1, 1),
+            nn.Upsample(scale_factor=0.5, mode='trilinear', align_corners=True),
+            BasicBlock3D(self.numFilters*2, self.numFilters*4, 3, 1, 1, 1),
+            nn.Upsample(scale_factor=0.5, mode='trilinear', align_corners=True),
+            BasicBlock3D(self.numFilters*4, self.numFilters*8, 3, 1, 1, 1),
         )
-        self.conv1 = nn.Sequential(
-            nn.Upsample(size=(self.numFrames, self.height, self.width//2), mode='trilinear', align_corners=True),
-            ResidualBlock3D(self.numFilters, self.numFilters, (3, 3, 3), (1, 1, 1), (1, 1, 1)),
-        )
-        self.conv1_dilated_2 = nn.Sequential(
-            nn.Upsample(size=(self.numFrames, self.height, self.width//2), mode='trilinear', align_corners=True),
-            ResidualBlock3D(self.numFilters, self.numFilters, (3, 3, 3), (1, 1, 1), (2, 1, 1), (2, 1, 1)),
-        )
-        self.conv1_dilated_4 = nn.Sequential(
-            nn.Upsample(size=(self.numFrames, self.height, self.width//2), mode='trilinear', align_corners=True),
-            ResidualBlock3D(self.numFilters, self.numFilters, (3, 3, 3), (1, 1, 1), (4, 1, 1), (4, 1, 1)),
-        )
-        self.conv2 = nn.Sequential(
-            nn.Upsample(size=(self.numFrames, self.height, self.width), mode='trilinear', align_corners=True),
-            ResidualBlock3D(self.numFilters*3, self.numFilters, (1, 1, 1), (1, 1, 1), (0, 0, 0)),
-            nn.Conv3d(self.numFilters, self.numFilters, (self.numFrames, 1, 1), (1, 1, 1), (0, 0, 0)),
-        )
+        self.temporalMaxpool = nn.MaxPool3d((self.numGroupFrames//4, 1, 1), 1)
     def forward(self, maps):
-        #print(maps.size())
-        maps = self.conv0(maps)
-        maps1 = self.conv1(maps)
-        maps1_2 = self.conv1_dilated_2(maps)
-        maps1_4 = self.conv1_dilated_4(maps)
-        #print(maps1.size(), maps1_2.size())
-        output = self.conv2(torch.cat((maps1, maps1_2, maps1_4), 1)).squeeze(2)
-        #print(output.size())
-        return output
-    
+        #maps = self.conv1(maps)
+        #maps = self.conv2(maps)
+        #maps = self.conv3(maps)
+        maps = self.main(maps)
+        maps = self.temporalMaxpool(maps)
+        return maps.squeeze(2)
+
 class BaseModel(nn.Module):
     def __init__(self, cfg):
         super(BaseModel, self).__init__()
@@ -245,121 +163,41 @@ class BaseModel(nn.Module):
         self.mode = cfg.DATASET.mode
         self.numFilters = cfg.MODEL.numFilters #32 is the old version value
         self.frontModel = cfg.MODEL.frontModel
-        '''
-        if self.mode == 'multiFrames':
-            self.encoderHoriMap = nn.Sequential(
-                nn.Upsample(size=(self.numFrames, self.height, self.width//4), mode='trilinear'),
-                ResidualBlock3D(2, self.numFilters, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-                nn.Upsample(size=(self.numFrames, self.height, self.width//2), mode='trilinear'),
-                ResidualBlock3D(self.numFilters, self.numFilters*2, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-                nn.Upsample(size=(self.numFrames, self.height, self.width), mode='trilinear'),
-                ResidualBlock3D(self.numFilters*2, self.numFilters*4, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-            )
-            self.encoderVertMap = nn.Sequential(
-                nn.Upsample(size=(self.numFrames, self.height, self.width//4), mode='trilinear'),
-                ResidualBlock3D(2, self.numFilters, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-                nn.Upsample(size=(self.numFrames, self.height, self.width//2), mode='trilinear'),
-                ResidualBlock3D(self.numFilters, self.numFilters*2, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-                nn.Upsample(size=(self.numFrames, self.height, self.width), mode='trilinear'),
-                ResidualBlock3D(self.numFilters*2, self.numFilters*4, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-            )
-            self.decoder = nn.Sequential(
-                ResidualBlock3D(self.numFilters*4, self.numFilters*4, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-                ResidualBlock3D(self.numFilters*4, self.numFilters*2, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-                ResidualBlock3D(self.numFilters*2, self.numFilters, (3, 5, 5), (1, 1, 1), (1, 2, 2)),
-                nn.Conv3d(self.numFilters, self.numKeypoints, 1, 1, 0),
-                #nn.ReLU() #use relu in 06/22 version
-                nn.Sigmoid()
-            )
-        '''
+
         if self.mode == 'multiFramesChirps' or self.mode == 'multiFrames':
             if self.frontModel == 'temporal':
                 self.encoderHoriMap = TemporalModel(cfg)
                 self.encoderVertMap = TemporalModel(cfg)
-                self.decoder = RODNetSkipConnections(self.numKeypoints, self.numFilters)
-            elif self.frontModel == 'temporal2':
-                self.encoderHoriMap = TemporalModelV2(cfg)
-                self.encoderVertMap = TemporalModelV2(cfg)
-                self.decoder = RODNetSkipConnections(self.numKeypoints, self.numFilters)
-            elif self.frontModel == 'temporal3':
-                self.encoderHoriMap = TemporalModelV3(cfg)
-                self.encoderVertMap = TemporalModelV3(cfg)
-                self.decoder = BasicDecoder(self.numKeypoints, self.numFilters)
-            elif self.frontModel == 'temporal4':
-                self.encoderHoriMap = TemporalModelV4(cfg)
-                self.encoderVertMap = TemporalModelV4(cfg)
-                self.decoder = BasicDecoder2(self.numKeypoints, self.numFilters, activation=nn.PReLU)
-            self.mnet = MNet(self.numFrames, self.numFilters)
-            self.temporalMaxpool = nn.MaxPool3d((self.numGroupFrames, 1, 1), (self.numGroupFrames, 1, 1))
-        elif self.mode == 'multiChirps':
-            if self.frontModel == 'spatial':
-                self.encoderHoriMap = nn.Sequential(
-                    nn.Upsample(size=(self.height, self.width), mode='bilinear', align_corners=True),
-                    ResidualBlock2D(self.numFilters, self.numFilters, (3, 3), (1, 1), (1, 1)),
-                    nn.Upsample(size=(self.height, self.width), mode='bilinear', align_corners=True),
-                    ResidualBlock2D(self.numFilters, self.numFilters, (3, 3), (1, 1), (1, 1)),
-                    nn.Upsample(size=(self.height, self.width), mode='bilinear', align_corners=True),
-                    ResidualBlock2D(self.numFilters, self.numFilters, (3, 3), (1, 1), (1, 1)),
-                )
-                self.encoderVertMap = nn.Sequential(
-                    nn.Upsample(size=(self.height, self.width), mode='bilinear', align_corners=True),
-                    ResidualBlock2D(self.numFilters, self.numFilters, (3, 3), (1, 1), (1, 1)),
-                    nn.Upsample(size=(self.height, self.width), mode='bilinear', align_corners=True),
-                    ResidualBlock2D(self.numFilters, self.numFilters, (3, 3), (1, 1), (1, 1)),
-                    nn.Upsample(size=(self.height, self.width), mode='bilinear', align_corners=True),
-                    ResidualBlock2D(self.numFilters, self.numFilters, (3, 3), (1, 1), (1, 1)),
-                )
-                self.decoder = RODNetSkipConnections(self.numKeypoints, self.numFilters)
-            elif self.frontModel == 'spatial2':
-                self.encoderHoriMap = nn.Sequential(
-                    BasicBlock2D(self.numFilters, self.numFilters, (3, 3), (1, 1), (1, 1)),
-                    BasicBlock2D(self.numFilters, self.numFilters*2, (3, 3), (1, 1), (1, 1)),
-                    nn.Upsample(size=(self.height//2, self.width//2), mode='bilinear', align_corners=True),
-                    #nn.Upsample(size=(self.height//2, self.width//2), mode='bicubic', align_corners=True),
-                    BasicBlock2D(self.numFilters*2, self.numFilters*2, (3, 3), (1, 1), (1, 1)),
-                    BasicBlock2D(self.numFilters*2, self.numFilters*4, (3, 3), (1, 1), (1, 1)),
-                    nn.Upsample(size=(self.height//4, self.width//4), mode='bilinear', align_corners=True),
-                    #nn.Upsample(size=(self.height//4, self.width//4), mode='bicubic', align_corners=True),
-                    BasicBlock2D(self.numFilters*4, self.numFilters*4, (3, 3), (1, 1), (1, 1)),
-                    BasicBlock2D(self.numFilters*4, self.numFilters*8, (3, 3), (1, 1), (1, 1)),
-                )
-                self.encoderVertMap = nn.Sequential(
-                    BasicBlock2D(self.numFilters, self.numFilters, (3, 3), (1, 1), (1, 1)),
-                    BasicBlock2D(self.numFilters, self.numFilters*2, (3, 3), (1, 1), (1, 1)),
-                    nn.Upsample(size=(self.height//2, self.width//2), mode='bilinear', align_corners=True),
-                    #nn.Upsample(size=(self.height//2, self.width//2), mode='bicubic', align_corners=True),
-                    BasicBlock2D(self.numFilters*2, self.numFilters*2, (3, 3), (1, 1), (1, 1)),
-                    BasicBlock2D(self.numFilters*2, self.numFilters*4, (3, 3), (1, 1), (1, 1)),
-                    nn.Upsample(size=(self.height//4, self.width//4), mode='bilinear', align_corners=True),
-                    #nn.Upsample(size=(self.height//4, self.width//4), mode='bicubic', align_corners=True),
-                    BasicBlock2D(self.numFilters*4, self.numFilters*4, (3, 3), (1, 1), (1, 1)),
-                    BasicBlock2D(self.numFilters*4, self.numFilters*8, (3, 3), (1, 1), (1, 1)),
-                )
+                #self.decoder = BasicDecoder2(self.numKeypoints, self.numFilters, activation=nn.LeakyReLU)
                 self.decoder = BasicDecoder(self.numKeypoints, self.numFilters, batchnorm=False, activation=nn.PReLU)
-            elif self.frontModel == 'spatial3':
+            else:
+                raise RuntimeError(F"activation should be temporal, not {self.mode}.")
+            self.mnet = MNet(self.numFrames, self.numFilters)
+        elif self.mode == 'multiChirps':
+            if self.frontModel == 'spatial2':
                 self.encoderHoriMap = nn.Sequential(
-                    BasicBlock2D(self.numFilters, self.numFilters, (5, 5), (1, 1), (2, 2)),
-                    BasicBlock2D(self.numFilters, self.numFilters*2, (5, 5), (1, 1), (2, 2)),
+                    BasicBlock2D(self.numFilters, self.numFilters, (3, 3), (1, 1), (1, 1)),
+                    BasicBlock2D(self.numFilters, self.numFilters*2, (3, 3), (1, 1), (1, 1)),
                     nn.Upsample(size=(self.height//2, self.width//2), mode='bilinear', align_corners=True),
                     #nn.Upsample(size=(self.height//2, self.width//2), mode='bicubic', align_corners=True),
-                    BasicBlock2D(self.numFilters*2, self.numFilters*2, (5, 5), (1, 1), (2, 2)),
-                    BasicBlock2D(self.numFilters*2, self.numFilters*4, (5, 5), (1, 1), (2, 2)),
+                    BasicBlock2D(self.numFilters*2, self.numFilters*2, (3, 3), (1, 1), (1, 1)),
+                    BasicBlock2D(self.numFilters*2, self.numFilters*4, (3, 3), (1, 1), (1, 1)),
                     nn.Upsample(size=(self.height//4, self.width//4), mode='bilinear', align_corners=True),
                     #nn.Upsample(size=(self.height//4, self.width//4), mode='bicubic', align_corners=True),
-                    BasicBlock2D(self.numFilters*4, self.numFilters*4, (5, 5), (1, 1), (2, 2)),
-                    BasicBlock2D(self.numFilters*4, self.numFilters*8, (5, 5), (1, 1), (2, 2)),
+                    BasicBlock2D(self.numFilters*4, self.numFilters*4, (3, 3), (1, 1), (1, 1)),
+                    BasicBlock2D(self.numFilters*4, self.numFilters*8, (3, 3), (1, 1), (1, 1)),
                 )
                 self.encoderVertMap = nn.Sequential(
-                    BasicBlock2D(self.numFilters, self.numFilters, (5, 5), (1, 1), (2, 2)),
-                    BasicBlock2D(self.numFilters, self.numFilters*2, (5, 5), (1, 1), (2, 2)),
+                    BasicBlock2D(self.numFilters, self.numFilters, (3, 3), (1, 1), (1, 1)),
+                    BasicBlock2D(self.numFilters, self.numFilters*2, (3, 3), (1, 1), (1, 1)),
                     nn.Upsample(size=(self.height//2, self.width//2), mode='bilinear', align_corners=True),
                     #nn.Upsample(size=(self.height//2, self.width//2), mode='bicubic', align_corners=True),
-                    BasicBlock2D(self.numFilters*2, self.numFilters*2, (5, 5), (1, 1), (2, 2)),
-                    BasicBlock2D(self.numFilters*2, self.numFilters*4, (5, 5), (1, 1), (2, 2)),
+                    BasicBlock2D(self.numFilters*2, self.numFilters*2, (3, 3), (1, 1), (1, 1)),
+                    BasicBlock2D(self.numFilters*2, self.numFilters*4, (3, 3), (1, 1), (1, 1)),
                     nn.Upsample(size=(self.height//4, self.width//4), mode='bilinear', align_corners=True),
                     #nn.Upsample(size=(self.height//4, self.width//4), mode='bicubic', align_corners=True),
-                    BasicBlock2D(self.numFilters*4, self.numFilters*4, (5, 5), (1, 1), (2, 2)),
-                    BasicBlock2D(self.numFilters*4, self.numFilters*8, (5, 5), (1, 1), (2, 2)),
+                    BasicBlock2D(self.numFilters*4, self.numFilters*4, (3, 3), (1, 1), (1, 1)),
+                    BasicBlock2D(self.numFilters*4, self.numFilters*8, (3, 3), (1, 1), (1, 1)),
                 )
                 self.decoder = BasicDecoder(self.numKeypoints, self.numFilters, batchnorm=False, activation=nn.PReLU)
             elif self.frontModel == 'spatial4':
@@ -382,6 +220,19 @@ class BaseModel(nn.Module):
                     Block2D(self.numFilters*8, self.numFilters*16, (5, 5), (2, 2), (2, 2)),
                 )
                 self.decoder = BasicDecoder2(self.numKeypoints, self.numFilters, activation=nn.LeakyReLU)
+            
+            if self.frontModel == 'transformer':
+                featureSize = 512
+                self.backbone = ResNetBackbone('resnet50', train_backbone=True)
+                self.backbone.body.conv1 = nn.Conv2d(self.numFilters, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+                self.posEmbed = PositionEmbeddingLearned(self.height, self.width, num_pos_feats=featureSize//2)
+                self.inputProj = nn.Conv2d(self.backbone.num_channels[-1], featureSize, 1)
+                self.queryEmbed = nn.Embedding(self.numKeypoints, featureSize)
+                self.encoderHoriMap = Transformer(d_model=featureSize)
+                self.encoderVertMap = Transformer(d_model=featureSize)
+                self.extractor = Joiner(self.backbone, self.posEmbed)
+                self.kptEmbed = MLP(featureSize*2, featureSize//4, 2, 3)
+                self.classEmbed = nn.Linear(featureSize*2, self.numKeypoints)
             self.mnet = MNet(self.numFrames, self.numFilters)
             #self.mnet = MNet(self.numFrames, 3)               
     
@@ -393,8 +244,22 @@ class BaseModel(nn.Module):
             horiMap = self.mnet(horiMap).squeeze(2)
             vertMap = self.mnet(vertMap).squeeze(2)
             #print(vertMap.size())
-            horiMap = self.encoderHoriMap(horiMap)
-            vertMap = self.encoderVertMap(vertMap)
+            if 'spatial' in self.frontModel: 
+                horiMap = self.encoderHoriMap(horiMap)
+                vertMap = self.encoderVertMap(vertMap)
+            elif 'transformer' in self.frontModel: 
+                horiMap, pos = self.extractor(horiMap)
+                vertMap, _ = self.extractor(vertMap)
+                horiMap = self.encoderHoriMap(self.inputProj(horiMap[-1]), None, self.queryEmbed.weight, pos[-1])[0]
+                vertMap = self.encoderVertMap(self.inputProj(vertMap[-1]), None, self.queryEmbed.weight, pos[-1])[0]
+                logits = self.classEmbed(torch.cat((horiMap[-1], vertMap[-1]), 2))
+                kpts = self.kptEmbed(torch.cat((horiMap[-1], vertMap[-1]), 2)).sigmoid()
+                #print(self.backbone.body.conv1.weight[0,0,0])
+                #print('query', self.queryEmbed.weight[0])
+                return (logits, kpts)
+            else:
+                raise RuntimeError("frontModel should be spatial/transformer, not {self.frontModel}.")
+            
             
         elif self.mode == 'multiFramesChirps' or self.mode == 'multiFrames':
             batchSize = horiMap.size(0)

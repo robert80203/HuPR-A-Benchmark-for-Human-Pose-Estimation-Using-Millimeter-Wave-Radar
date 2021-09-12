@@ -25,12 +25,11 @@ class Normalize(object):
             return radarDataNorm
 
 class BaseDataset(data.Dataset):
-    def __init__(self, dataDir, phase):
+    def __init__(self, phase):
         if phase not in ('train', 'val', 'test'):
             raise ValueError('Invalid phase: {}'.format(phase))
 
         super(BaseDataset, self).__init__()
-        self.dataDir = dataDir
         #self.resizeShape = resizeShape
         #self.cropShape = cropShape
         self.phase = phase
@@ -52,22 +51,38 @@ class BaseDataset(data.Dataset):
     def isImageFile(self, filename):
         return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
-    def getPaths(self, dataDir, dirGroup, mode, frameGroup):
+    def getPaths(self, dataDirGroup, dirGroup, mode, frameGroup):
+        num = len(dataDirGroup)
         images = []
-        for dirName in dirGroup:
-            for frame in frameGroup:
-                path = os.path.join(dataDir, dirName, mode, frame + '.npy')
-                images.append(path)
+        for i in range(num):
+            for dirName in dirGroup[i]:
+                for frame in frameGroup:
+                    path = os.path.join(dataDirGroup[i], dirName, mode, frame + '.npy')
+                    images.append(path)
         return images
+        # for dirName in dirGroup:
+        #     for frame in frameGroup:
+        #         path = os.path.join(dataDir, dirName, mode, frame + '.npy')
+        #         images.append(path)
+        # return images
 
-    def getAnnots(self, dataDir, dirGroup, mode, fileName):
+    def getAnnots(self, dataDirGroup, dirGroup, mode, fileName):
+        num = len(dataDirGroup)
         annots = []
-        for dirName in dirGroup:
-            path = os.path.join(dataDir, dirName, mode, fileName)
-            with open(path, 'r') as fp:
-                annot = json.load(fp)
-            annots.extend(annot)
+        for i in range(num):
+            for dirName in dirGroup[i]:
+                path = os.path.join(dataDirGroup[i], dirName, mode, fileName)
+                with open(path, 'r') as fp:
+                    annot = json.load(fp)
+                annots.extend(annot)
         return annots
+
+        # for dirName in dirGroup:
+        #     path = os.path.join(dataDir, dirName, mode, fileName)
+        #     with open(path, 'r') as fp:
+        #         annot = json.load(fp)
+        #     annots.extend(annot)
+        # return annots
 
     def __getitem__(self, idx):
         raise NotImplementedError('Subclass of BaseDataset must implement __getitem__')

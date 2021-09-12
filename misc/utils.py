@@ -64,7 +64,7 @@ def generateHeatmapsFromKeypoints(dims, keypoints, num_keypoints, len_kernel=11,
 # Written by Bin Xiao (Bin.Xiao@microsoft.com)
 # ------------------------------------------------------------------------------
 
-def generate_target(joints, numKeypoints, hSize, iSize):
+def generateTarget(joints, numKeypoints, hSize, iSize, isCoord=False):
     '''
     :param joints:  [num_joints, 3]
     :param joints_vis: [num_joints, 3]
@@ -76,19 +76,23 @@ def generate_target(joints, numKeypoints, hSize, iSize):
     heatmapSize = np.array([hSize, hSize])
     imgSize = np.array([iSize, iSize])
 
-
-    
     target = np.zeros((numKeypoints,
                        heatmapSize[1],
                        heatmapSize[0]),
                       dtype=np.float32)
 
+    targetKpts = np.zeros((numKeypoints, 2))
+
     tmp_size = sigma * 3
 
     for joint_id in range(numKeypoints):
         feat_stride = imgSize / heatmapSize
-        mu_x = int(joints[joint_id][0] / feat_stride[0] + 0.5)
-        mu_y = int(joints[joint_id][1] / feat_stride[1] + 0.5)
+        if isCoord:
+            mu_x = int(joints[joint_id][0] * hSize)
+            mu_y = int(joints[joint_id][1] * hSize)
+        else:
+            mu_x = int(joints[joint_id][0] / feat_stride[0] + 0.5)
+            mu_y = int(joints[joint_id][1] / feat_stride[1] + 0.5)
         # Check that any part of the gaussian is in-bounds
         ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]
         br = [int(mu_x + tmp_size + 1), int(mu_y + tmp_size + 1)]
@@ -122,9 +126,11 @@ def generate_target(joints, numKeypoints, hSize, iSize):
         target[joint_id][img_y[0]:img_y[1], img_x[0]:img_x[1]] = \
             g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
 
+        targetKpts[joint_id][0] = mu_x
+        targetKpts[joint_id][1] = mu_y
     #if self.use_different_joints_weight:
     #    target_weight = np.multiply(target_weight, self.joints_weight)
 
     #return target, target_weight
     #target = np.max(target, axis = 0)
-    return target
+    return target, targetKpts

@@ -7,54 +7,35 @@ import numpy as np
 import torch
 
 class HoriVertiDataset(BaseDataset):
-    def __init__(self, dataDir, phase, cfg):
+    def __init__(self, phase, cfg):
         if phase not in ('train', 'val', 'test'):
             raise ValueError('Invalid phase: {}'.format(phase))
-        super(HoriVertiDataset, self).__init__(dataDir, phase)
+        super(HoriVertiDataset, self).__init__(phase)
         self.duration = cfg.DATASET.duration # 30 FPS * 60 seconds
         self.numFrames = cfg.DATASET.numFrames
         self.numGroupFrames = cfg.DATASET.numGroupFrames
+        #self.numSamples = cfg.DATASET.numSamples
+        self.numChirps = cfg.DATASET.numChirps
         self.mode = cfg.DATASET.mode
         self.h = cfg.DATASET.rangeSize
         self.w = cfg.DATASET.azimuthSize
-        #for 20210609
-        #if phase == 'test' or phase == 'val':
-        #    dirGroup = ['single_6']
-        #else:
-        #    dirGroup = ['single_1','single_2','single_3','single_4']
 
-        #for 20210628
-        #if phase == 'test':
-        #     dirGroup = ['single_1']
-        #elif phase == 'val':
-        #     dirGroup = ['single_11', 'single_21']
-        #else:
-        #     dirGroup = ['single_%d' % i for i in range(2, 11)] + \
-        #                 ['single_%d' % i for i in range(12, 21)] + \
-        #                 ['single_%d' % i for i in range(22, 31)]
-        
-        #for 20210712
-        # if phase == 'test':
-        #      dirGroup = ['single_1']
-        # elif phase == 'val':
-        #      dirGroup = ['single_18']
-        # else:
-        #      dirGroup = ['single_%d' % i for i in range(2, 18)]
-
-        #for 20210722
         if phase == 'test':
              dirGroup = cfg.DATASET.testName
+             dataDirGroup = [cfg.DATASET.dataDir[0]]
         elif phase == 'val':
              dirGroup = cfg.DATASET.valName
+             dataDirGroup = [cfg.DATASET.dataDir[0]]
         else:
              dirGroup = cfg.DATASET.trainName
+             dataDirGroup = cfg.DATASET.dataDir
         
         #numFramesEachClip = self.duration * self.numFrames
         numFramesEachClip = self.duration
         idxFrameGroup = [('%09d' % i) for i in range(numFramesEachClip)]
-        self.horiPaths = self.getPaths(dataDir, dirGroup, 'hori', idxFrameGroup)
-        self.vertPaths = self.getPaths(dataDir, dirGroup, 'verti', idxFrameGroup)
-        self.annots = self.getAnnots(dataDir, dirGroup, 'annot', 'hrnet_annot.json')
+        self.horiPaths = self.getPaths(dataDirGroup, dirGroup, 'hori', idxFrameGroup)
+        self.vertPaths = self.getPaths(dataDirGroup, dirGroup, 'verti', idxFrameGroup)
+        self.annots = self.getAnnots(dataDirGroup, dirGroup, 'annot', 'hrnet_annot.json')
         self.transformFunc = self.getTransformFunc()
 
     def __getitem__(self, index):
@@ -93,13 +74,16 @@ class HoriVertiDataset(BaseDataset):
             
             horiImgs = torch.zeros((self.numFrames, 2, self.h, self.w))
             vertImgs = torch.zeros((self.numFrames, 2, self.h, self.w))
+            #horiImgs = torch.zeros((self.numSamples, 2, self.h, self.w))
+            #vertImgs = torch.zeros((self.numSamples, 2, self.h, self.w))
             
-            for idxChirps in range(self.numFrames):
-                horiImgs[idxChirps, 0, :, :] = self.transformFunc(horiRealImag[idxChirps].real)
-                horiImgs[idxChirps, 1, :, :] = self.transformFunc(horiRealImag[idxChirps].imag)
-                vertImgs[idxChirps, 0, :, :] = self.transformFunc(vertRealImag[idxChirps].real)
-                vertImgs[idxChirps, 1, :, :] = self.transformFunc(vertRealImag[idxChirps].imag)
-            
+            idxSampleChirps = 0
+            for idxChirps in range(0, self.numChirps, self.numChirps//self.numFrames):
+                horiImgs[idxSampleChirps, 0, :, :] = self.transformFunc(horiRealImag[idxChirps].real)
+                horiImgs[idxSampleChirps, 1, :, :] = self.transformFunc(horiRealImag[idxChirps].imag)
+                vertImgs[idxSampleChirps, 0, :, :] = self.transformFunc(vertRealImag[idxChirps].real)
+                vertImgs[idxSampleChirps, 1, :, :] = self.transformFunc(vertRealImag[idxChirps].imag)
+                idxSampleChirps += 1
 
             joints = torch.LongTensor(self.annots[index]['joints'])
 
@@ -117,6 +101,9 @@ class HoriVertiDataset(BaseDataset):
             horiImgss = torch.zeros((self.numGroupFrames, self.numFrames, 2, self.h, self.w))
             vertImgss = torch.zeros((self.numGroupFrames, self.numFrames, 2, self.h, self.w))
             
+            #horiImgss = torch.zeros((self.numGroupFrames, self.numSamples, 2, self.h, self.w))
+            #vertImgss = torch.zeros((self.numGroupFrames, self.numSamples, 2, self.h, self.w))
+
             for j in range(self.numGroupFrames):
                 if (j + padSize) < self.numGroupFrames//2:
                     idx = index - padSize
@@ -124,7 +111,7 @@ class HoriVertiDataset(BaseDataset):
                     idx = index + (self.duration - 1 - padSize)
                 else:
                     idx += 1
-                
+
                 #for i in range(idx * self.numFrames, (idx + 1) * self.numFrames):
                 #    horiPath = self.horiPaths[i]
                 #    vertPath = self.vertPaths[i]
@@ -168,12 +155,15 @@ class HoriVertiDataset(BaseDataset):
                 horiRealImag = np.load(horiPath)
                 vertRealImag = np.load(vertPath)
 
-                for idxChirps in range(self.numFrames):
-                    horiImgss[j, idxChirps, 0, :, :] = self.transformFunc(horiRealImag[idxChirps].real)
-                    horiImgss[j, idxChirps, 1, :, :] = self.transformFunc(horiRealImag[idxChirps].imag)
-                    vertImgss[j, idxChirps, 0, :, :] = self.transformFunc(vertRealImag[idxChirps].real)
-                    vertImgss[j, idxChirps, 1, :, :] = self.transformFunc(vertRealImag[idxChirps].imag)
-            
+                idxSampleChirps = 0
+                #for idxChirps in range(self.numFrames):
+                for idxChirps in range(0, self.numChirps, self.numChirps//self.numFrames):
+                    horiImgss[j, idxSampleChirps, 0, :, :] = self.transformFunc(horiRealImag[idxChirps].real)
+                    horiImgss[j, idxSampleChirps, 1, :, :] = self.transformFunc(horiRealImag[idxChirps].imag)
+                    vertImgss[j, idxSampleChirps, 0, :, :] = self.transformFunc(vertRealImag[idxChirps].real)
+                    vertImgss[j, idxSampleChirps, 1, :, :] = self.transformFunc(vertRealImag[idxChirps].imag)
+                    idxSampleChirps += 1
+
             joints = torch.LongTensor(self.annots[index]['joints'])    
             return {'horiImg': horiImgss,
                     'horiPath': horiPath,
