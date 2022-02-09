@@ -1,0 +1,45 @@
+DATASET:
+    upsamplingFactor: 4 # from heatmaps (128 x 128) to RGB (256 x 256)
+    duration: 1800
+    heatmapSize: 64
+    imgSize: 256
+    rangeSize: 64
+    azimuthSize: 64
+    numKeypoints: 14
+    numFrames: 8 # num of chirps in one frame you want to use as an input
+    numGroupFrames: 32 #32 #32 # set -1 if using single frame
+    numChirps: 16
+    log: False
+    stdmean: True
+    useVelocity: False
+    mode: "multiFramesChirps"
+    dataDir: './data/20220107_Pad_CltRm_RDA' # the first dir will be the test/val set
+    testName: [1, 7, 13, 19, 25]
+    valName: [1, 7, 13, 19, 25]
+    trainName: [2,3,4,5,6,8,9,10,11,12,14,15,16,17,18,20,21,22,23,24,26,27,28,29,30]
+    idxToJoints:
+        ["R_Hip", "R_Knee", "R_Ankle", "L_Hip", "L_Knee", 
+         "L_Ankle", "Neck", "Head", "L_Shoulder", "L_Elbow", 
+         "L_Wrist", "R_Shoulder", "R_Elbow", "R_Wrist"]
+MODEL:
+    numFilters: 32
+    frontModel: "stunet_df"
+    backbone: ""
+    chirpModel: "mnet"
+    type: "heatmap_regress"
+    gcnType: "stgcn2_coord"
+TRAINING:
+    batchSize: 16
+    epochs: 200
+    lr: 0.0001
+    warmupEpoch: -1
+    warmupGrowth: 1.005
+    lrDecay: 0.999
+    optimizer: "adam"
+    metric: "APCK" #"l2norm_PCK"
+TEST:
+    batchSize: 32
+    plotImgDir: "20220107"
+    outputName: "STUNet+DF+STGCN2" #"UNet+DF+PRGCN"
+SETUP:
+    numWorkers: 4

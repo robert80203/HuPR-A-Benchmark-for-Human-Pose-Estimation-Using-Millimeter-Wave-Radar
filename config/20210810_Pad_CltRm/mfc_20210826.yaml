@@ -1,0 +1,36 @@
+DATASET:
+    upsamplingFactor: 8 # from heatmaps (512 x 512) to RGB (512 x 512)
+    duration: 1800
+    heatmapSize: 64
+    imgSize: 512
+    rangeSize: 64
+    azimuthSize: 64
+    numKeypoints: 16
+    numFrames: 16
+    numGroupFrames: 20 # set -1 if using single frame
+    mode: "multiFramesChirps"
+    dataDir: "./data/20210810_Pad_CltRm"
+    testName: ["single_14"]
+    valName: ["single_14"]
+    trainName: ['single_1', 'single_2', 'single_3', 'single_4', 'single_5', 'single_6', 'single_7', 'single_8', 'single_9', 'single_10', 'single_11', 'single_12', 'single_13']
+MODEL:
+    numFilters: 32
+    frontModel: "temporal"
+    type: "heatmap" #heatmap
+TRAINING:
+    batchSize: 32
+    epochs: 200
+    lr: 0.0001
+    warmupEpoch: -1
+    warmupGrowth: 1.005
+    lrDecay: 0.9995
+    optimizer: "adam"
+LOGGER:
+    idxToJoints:
+        ["RightAnkle", "RightKnee", "RightHip", "LeftHip", "LeftKnee", 
+         "LeftAnkle", "Pelvis", "Chest", "Neck", "head", 
+         "RightWrist", "RightElbow", "RightShoulder", "LeftShoulder", "LeftElbow", "LeftWrist"]
+    plotImgDir: "20210810"
+    intervalEval: 5
+SETUP:
+    numWorkers: 12

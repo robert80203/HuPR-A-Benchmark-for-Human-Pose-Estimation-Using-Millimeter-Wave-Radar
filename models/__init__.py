@@ -1,1 +1,1 @@
-from models.networks import BaseModel
+from models.networks import BaseModel, RFPose

@@ -1,0 +1,4 @@
+LOGGER:
+    idxToJoints:
+        ["Head", "Neck", "RightShoulder", "RightElbow", "RightWrist", "LeftShoulder", "LeftElbow", "LeftWrist", "RightHip", "RightKnee", "RightAnkle", "LeftHip", "LeftKnee", "LeftAnkle", "Chest", "Pelvis"]
+    intervalEval: 5

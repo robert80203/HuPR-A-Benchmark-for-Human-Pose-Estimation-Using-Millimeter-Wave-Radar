@@ -10,7 +10,7 @@ DATASET:
     numGroupFrames: 20 # set -1 if using single frame
     numChirps: 8
     mode: "multiFramesChirps"
-    dataDir: ['../processed_data/iwr1642/20210906_Pad_CltRm_128Chirps'] # the first dir will be the test/val set
+    dataDir: ['./data/20210906_Pad_CltRm_128Chirps'] # the first dir will be the test/val set
     testName: [["single_1"]]
     valName: [["single_1"]]
     trainName: [['single_2', 'single_3', 'single_4', 'single_5', 'single_6', 'single_7', 'single_8', 'single_9', 'single_10', 'single_11', 'single_12', 'single_13',

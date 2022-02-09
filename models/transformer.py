@@ -14,7 +14,7 @@ from typing import Optional, List
 
 import torch
 import torch.nn.functional as F
-from torch import nn, Tensor
+from torch import nn, Tensor, tensor
 import torchvision
 from torchvision.models._utils import IntermediateLayerGetter
 
@@ -24,7 +24,7 @@ class Transformer(nn.Module):
     def __init__(self, d_model=512, nhead=8, num_encoder_layers=6,
                  num_decoder_layers=6, dim_feedforward=2048, dropout=0.1,
                  activation="relu", normalize_before=False,
-                 return_intermediate_dec=False):
+                 return_intermediate_dec=False, encoderOnly=False):
         super().__init__()
 
         encoder_layer = TransformerEncoderLayer(d_model, nhead, dim_feedforward,
@@ -36,12 +36,13 @@ class Transformer(nn.Module):
                                                 dropout, activation, normalize_before)
         decoder_norm = nn.LayerNorm(d_model)
         self.decoder = TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm,
-                                          return_intermediate=return_intermediate_dec)
+                                        return_intermediate=return_intermediate_dec)
 
         self._reset_parameters()
 
         self.d_model = d_model
         self.nhead = nhead
+        self.encoderOnly = encoderOnly
 
     def _reset_parameters(self):
         for p in self.parameters():
@@ -59,9 +60,12 @@ class Transformer(nn.Module):
 
         tgt = torch.zeros_like(query_embed)
         memory = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
-        hs = self.decoder(tgt, memory, memory_key_padding_mask=mask,
-                          pos=pos_embed, query_pos=query_embed)
-        return hs.transpose(1, 2), memory.permute(1, 2, 0).view(bs, c, h, w)
+        if self.encoderOnly:
+            return memory.permute(1, 2, 0).view(bs, c, h, w)
+        else:
+            hs = self.decoder(tgt, memory, memory_key_padding_mask=mask,
+                            pos=pos_embed, query_pos=query_embed)
+            return hs.transpose(1, 2)
 
 
 class TransformerEncoder(nn.Module):
@@ -318,6 +322,7 @@ class PositionEmbeddingLearned(nn.Module):
 
     def forward(self, x):
         h, w = x.shape[-2:]
+        #print(h, w)
         i = torch.arange(w, device=x.device)
         j = torch.arange(h, device=x.device)
         x_emb = self.col_embed(i)
@@ -327,6 +332,7 @@ class PositionEmbeddingLearned(nn.Module):
             y_emb.unsqueeze(1).repeat(1, w, 1),
         ], dim=-1).permute(2, 0, 1).unsqueeze(0).repeat(x.shape[0], 1, 1, 1)
         return pos
+
 
 class FrozenBatchNorm2d(nn.Module):
     """
@@ -400,7 +406,7 @@ class ResNetBackbone(BackboneBase):
         #logger.info(f'=> Loading backbone, pretrained: {pretrained}')
         assert name in ['resnet50',
                         'resnet101'], "Number of channels is hard-coded"
-        num_channels = 2048
+        num_channels = 0
         super().__init__(backbone, train_backbone, return_interm_layers)
         self.num_channels = num_channels
         if return_interm_layers:
@@ -409,22 +415,28 @@ class ResNetBackbone(BackboneBase):
             #self.num_channels = [2048]
             self.num_channels = [512]
 
-
-
 class Joiner(nn.Sequential):
-    def __init__(self, backbone, position_embedding):
+    def __init__(self, backbone, position_embedding, useResNet=True):
         super().__init__(backbone, position_embedding)
-        self.num_channels = backbone.num_channels[-1]
+        #self.num_channels = backbone.num_channels[-1]
+        self.useResNet = useResNet
 
     def forward(self, tensor_list: Tensor):
-        out = self[0](tensor_list)
-        pos = []
+        if self.useResNet:
+            out = self[0](tensor_list)
+            pos = []
+            # position encoding
+            for x in out:
+                pos.append(self[1](x).to(x.dtype))
+            #for 2048
+            return out[-1], pos[-1] 
+            #for 512
+            #return out[0], pos[0]
+        else:
+            out = self[0](tensor_list)
+            pos = self[1](out).to(out.dtype)
+            return out, pos
 
-        # position encoding
-        for x in out:
-            pos.append(self[1](x).to(x.dtype))
-
-        return out, pos
 
 class MLP(nn.Module):
     """ Very simple multi-layer perceptron (also called FFN)"""
