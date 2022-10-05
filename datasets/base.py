@@ -1,37 +1,27 @@
 import os
-import torchvision.transforms as transforms
-import torch.utils.data as data
-import torch
-import torch.nn.functional as F
-from PIL import Image
 import json
+import torch
 import numpy as np
+from PIL import Image
+import torch.nn.functional as F
+import torch.utils.data as data
+import torchvision.transforms as transforms
 
 IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG',
                   '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP', '.npy', '.txt']
 
 class Normalize(object):
-    def __init__(self, std_mean=False, use_log=False):
-        self.std_mean = std_mean
-        self.use_log = use_log
-    
+    def __init__(self):
+        pass
+
     def __call__(self, radarData):
-        assert len(radarData.size()) == 3, 'input shape must be 3D'
         c = radarData.size(0)
         minValues = torch.min(radarData.view(c, -1), 1)[0].view(c, 1, 1)
         radarDataZero = radarData - minValues
-
-        if self.use_log:
-            radarDataNorm = torch.log(radarDataZero + 1e-7)
-        else:
-            maxValues = torch.max(radarDataZero.view(c, -1), 1)[0].view(c, 1, 1)
-            radarDataNorm = radarDataZero / maxValues
-        
-        if self.std_mean:
-            std, mean = torch.std_mean(radarDataNorm.view(c, -1), 1)
-            return (radarDataNorm - mean) / std
-        else:
-            return radarDataNorm 
+        maxValues = torch.max(radarDataZero.view(c, -1), 1)[0].view(c, 1, 1)
+        radarDataNorm = radarDataZero / maxValues
+        std, mean = torch.std_mean(radarDataNorm.view(c, -1), 1)
+        return (radarDataNorm - mean.view(c, 1, 1)) / std.view(c, 1, 1)
 
 def generateGTAnnot(cfg, phase='train'):
     annot = {
@@ -46,9 +36,9 @@ def generateGTAnnot(cfg, phase='train'):
         "description": "HuPR dataset",
         "url": "",
         "version": "1.0",
-        "year": 2021,
+        "year": 2022,
         "contributor": "UW-NYCU-AI-Labs",
-        "date_created": "2021/11/06"
+        "date_created": "2022/06/23"
     }
     annot["categories"] = [{
             "supercategory": "person",
@@ -66,10 +56,9 @@ def generateGTAnnot(cfg, phase='train'):
     group_idx = eval('cfg.DATASET.'+phase+'Name')
     for idx in group_idx:
         with open(os.path.join(cfg.DATASET.dataDir, 'single_%d/annot/hrnet_annot.json'% idx)) as fp:
-        #with open(os.path.join(cfg.DATASET.dataDir, 'single_%d/annot/mmlab.json'% idx)) as fp:
             mmlab = json.load(fp)
         for block in mmlab:
-            image_id = int(block['image'][:9]) + idx * 100000 #image_id = id
+            image_id = int(block['image'][:-4]) + idx * 100000 #image_id = id
             joints = np.array(block["joints"])
             bbox = block["bbox"]
             visIdx = np.ones((14 , 1)) + 1.0 #2 is labeled and visible
@@ -95,32 +84,28 @@ def generateGTAnnot(cfg, phase='train'):
                 "flickr_url": "None",
                 "id": image_id
             })
-        print('Generate GTs for single_%d for %s stage'%(idx, phase), end='\r')
-
-    with open(os.path.join(cfg.DATASET.dataDir,'%s_gt.json'%phase), 'w') as fp:
+        print('Generate GTs for single_%d for %s stage'%(idx, phase))
+    with open(os.path.join(cfg.DATASET.dataDir, '%s_gt.json'%phase), 'w') as fp:
         json.dump(annot, fp)
+
 
 class BaseDataset(data.Dataset):
     def __init__(self, phase):
         if phase not in ('train', 'val', 'test'):
             raise ValueError('Invalid phase: {}'.format(phase))
-
         super(BaseDataset, self).__init__()
-        #self.resizeShape = resizeShape
-        #self.cropShape = cropShape
         self.phase = phase
-        #self.transformFunc = self.getTransformFunc()
 
     def getTransformFunc(self, cfg):
         if self.phase == 'train':
             transformFunc = transforms.Compose([
                 transforms.ToTensor(),
-                Normalize(std_mean=cfg.DATASET.stdmean, use_log=cfg.DATASET.log)
+                Normalize()
             ])
         else:
             transformFunc = transforms.Compose([
                 transforms.ToTensor(),
-                Normalize(std_mean=cfg.DATASET.stdmean, use_log=cfg.DATASET.log)
+                Normalize()
             ])
         return transformFunc
     
@@ -136,11 +121,6 @@ class BaseDataset(data.Dataset):
                     path = os.path.join(dataDirGroup[i], dirName, mode, frame + '.npy')
                     images.append(path)
         return images
-        # for dirName in dirGroup:
-        #     for frame in frameGroup:
-        #         path = os.path.join(dataDir, dirName, mode, frame + '.npy')
-        #         images.append(path)
-        # return images
 
     def getAnnots(self, dataDirGroup, dirGroup, mode, fileName):
         num = len(dataDirGroup)
@@ -152,13 +132,6 @@ class BaseDataset(data.Dataset):
                     annot = json.load(fp)
                 annots.extend(annot)
         return annots
-
-        # for dirName in dirGroup:
-        #     path = os.path.join(dataDir, dirName, mode, fileName)
-        #     with open(path, 'r') as fp:
-        #         annot = json.load(fp)
-        #     annots.extend(annot)
-        # return annots
 
     def __getitem__(self, idx):
         raise NotImplementedError('Subclass of BaseDataset must implement __getitem__')

@@ -1,1 +1,1 @@
-from models.networks import BaseModel, RFPose
+from models.networks import HuPRNet

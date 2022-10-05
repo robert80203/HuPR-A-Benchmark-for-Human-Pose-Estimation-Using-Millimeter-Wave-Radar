@@ -1,7 +1,7 @@
-import argparse
 import yaml
+import argparse
+from tools import Runner
 from collections import namedtuple
-from tools import Trainer, RFTrainer, Runner
 
 
 class obj(object):
@@ -19,39 +19,23 @@ if __name__ == "__main__":
                         help='random seed (default: 0)')
     parser.add_argument('--dir', type=str, default='test', metavar='B',
                         help='directory of saving/loading')
-    parser.add_argument('--visDir', type=str, default='test', metavar='B',
+    parser.add_argument('--visDir', type=str, default='none', metavar='B',
                         help='directory of visualization')
-    parser.add_argument('--config', type=str, default='multichirps.yaml', metavar='B',
+    parser.add_argument('--config', type=str, default='20211106/test.yaml', metavar='B',
                         help='directory of visualization')
     parser.add_argument('--gpuIDs', default=[0], type=eval, help='IDs of GPUs to use')                        
     parser.add_argument('--eval', action="store_true")
-    parser.add_argument('--debug', action="store_true")
-    parser.add_argument('--vis', action="store_true", help='visualize the results')
     parser.add_argument('-sr', '--sampling_ratio', type=int, default=1, help='sampling ratio for training/test (default: 1)')
-    parser.add_argument('--setting', type=str, default='eccv2022', help='should be prgcn/eccv2022/rfpose')
+    parser.add_argument('--keypoints', action='store_true', help='print out the APs of all keypoints')
     args = parser.parse_args()
     with open('./config/' + args.config, 'r') as f:
         cfg = yaml.safe_load(f)
         cfg = obj(cfg)
-    if args.setting == 'prgcn':
-        trigger = Trainer(args, cfg)
-    elif args.setting == 'eccv2022':
-        trigger = Runner(args, cfg)
-    elif args.setting == 'rfpose':
-        trigger = RFTrainer(args, cfg)
-    else:
-        exit(0)
-    
+    trigger = Runner(args, cfg)
+    vis = False if args.visDir == 'none' else True
     if args.eval:
         trigger.loadModelWeight('model_best')
-        if "stage2" in cfg.MODEL.frontModel:
-            trigger.evalRefine(visualization=args.vis)
-        else:
-            trigger.eval(visualization=args.vis)
+        trigger.eval(visualization=vis)
     else:
         trigger.loadModelWeight('checkpoint')
-        if "stage2" in cfg.MODEL.frontModel:
-            trigger.trainRefine()
-        else:
-            trigger.train()
-        #trigger.debug()
+        trigger.train()

@@ -1,27 +1,22 @@
-from tqdm import tqdm
-import torch.utils.data as data
-import torch
-import torch.nn.functional as F
-import numpy as np
-import torch.optim as optim
 import os
 import json
-
-
-from misc.losses import LossComputer
+import torch
+import numpy as np
+from tqdm import tqdm
+import torch.optim as optim
 from misc.logger import Logger
+import torch.utils.data as data
+import torch.nn.functional as F
+from misc.losses import LossComputer
 
-
-class BaseTrainer():
+class BaseRunner():
     def __init__(self, args, cfg):
         self.device = 'cuda' if torch.cuda.is_available() and args.gpuIDs else 'cpu'
         np.random.seed(args.seed)
         torch.manual_seed(args.seed)
         torch.cuda.manual_seed_all(args.seed)
-        
         self.dir = './logs/' + args.dir
         self.visDir = './visualization/' + args.visDir
-        #self.loadDir = './logs/' + args.loadDir
         self.args = args
         self.cfg = cfg
         self.heatmapSize = self.width = self.height = self.cfg.DATASET.heatmapSize
@@ -29,20 +24,15 @@ class BaseTrainer():
         self.numKeypoints = self.cfg.DATASET.numKeypoints
         self.dimsWidthHeight = (self.width, self.height)
         self.start_epoch = 0
-        #self.global_step = 0
-        self.DEBUG = args.debug
-        #self.mode = self.cfg.DATASET.mode
         self.numFrames = self.cfg.DATASET.numFrames
-        self.modelType = self.cfg.MODEL.type
-        self.fronModel = self.cfg.MODEL.frontModel
-        self.metricType = self.cfg.TRAINING.metric
+        self.F = self.cfg.DATASET.numGroupFrames
         self.imgHeatmapRatio = self.cfg.DATASET.imgSize / self.cfg.DATASET.heatmapSize
         self.aspectRatio = self.imgWidth * 1.0 / self.imgHeight
         self.pixel_std = 200
 
-    def initialize(self):
+    def initialize(self, LR):
         self.lossComputer = LossComputer(self.cfg, self.device)
-        self.logger = Logger(False if 'l2norm' in self.cfg.TRAINING.metric else True)
+        self.logger = Logger()
         if not os.path.isdir(self.dir):
             os.mkdir(self.dir)
         if not os.path.isdir(self.visDir):
@@ -50,7 +40,12 @@ class BaseTrainer():
         if not self.args.eval:
             print('==========>Train set size:', len(self.trainLoader))
         print('==========>Test set size:', len(self.testLoader))
-    
+  
+        if self.cfg.TRAINING.optimizer == 'sgd':
+            self.optimizer = optim.SGD(self.model.parameters(), lr=LR, momentum=0.9, weight_decay=1e-4)
+        elif self.cfg.TRAINING.optimizer == 'adam':  
+            self.optimizer = optim.Adam(self.model.parameters(), lr=LR, betas=(0.9, 0.999), weight_decay=1e-4)
+
     def _xywh2cs(self, x, y, w, h):
         center = np.zeros((2), dtype=np.float32)
         center[0] = x + w * 0.5
@@ -77,31 +72,54 @@ class BaseTrainer():
                 param_group['lr'] *= self.cfg.TRAINING.lrDecay
 
 
-    def saveModelWeight(self, epoch):
+    def saveModelWeight(self, epoch, acc):
+        saveGroup = {
+            'epoch': epoch,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'accuracy': self.logger.showBestAP(),
+        }
+        if self.logger.isBestAccAP(acc):
+            saveGroup['accuracy'] = self.logger.showBestAP()
+            print('==========>Save the best model...')
+            torch.save(saveGroup, os.path.join(self.dir, 'model_best.pth'))
+
+        print('==========>Save the latest model...')
+        torch.save(saveGroup, os.path.join(self.dir, 'checkpoint.pth'))
+        if epoch % 5 == 0:
+            torch.save(saveGroup, os.path.join(self.dir, 'checkpoint_%d.pth'%epoch))
+
+    def saveCheckpoint(self, epoch):
         saveGroup = {
             'epoch': epoch,
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
             'accuracy': self.logger.showAcc(mode='best'),
         }
-        if self.logger.isBestAcc():
-            print('Save the best model...')
-            torch.save(saveGroup, os.path.join(self.dir, 'model_best.pth'))
-
-        print('Save the latest model...')
-        torch.save(saveGroup, os.path.join(self.dir, 'checkpoint.pth'))
+        print('==========>Save the latest model...')
+        torch.save(saveGroup, os.path.join(self.dir, 'checkpoint_%d.pth' % epoch))
+        
+    def saveLosslist(self, epoch, loss_list, mode):
+        with open(os.path.join(self.dir,'%s_loss_list_%d.json'%(mode, epoch)), 'w') as fp:
+            json.dump(loss_list, fp)
     
     def loadModelWeight(self, mode):
         checkpoint = os.path.join(self.dir, '%s.pth'%mode)
         if os.path.isdir(self.dir) and os.path.exists(checkpoint):
             checkpoint = torch.load(checkpoint)
             self.model.load_state_dict(checkpoint['model_state_dict'])
-            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            self.start_epoch = checkpoint['epoch']
-            self.logger.updateBestAcc(checkpoint['accuracy'])
-            print('Load the model weight from %s, saved at epoch %d' %(self.dir, checkpoint['epoch']))
+            if not self.args.eval:
+                if not self.args.pretrained: #self.args.pretrained_encoder:
+                    print('==========>Load the previous optimizer')
+                    self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                    self.start_epoch = checkpoint['epoch']
+                    self.logger.updateBestAcc(checkpoint['accuracy'])
+                else:
+                    print('==========>Load a new optimizer')
+                
+            print('==========>Load the model weight from %s, saved at epoch %d' %(self.dir, checkpoint['epoch']))
         else:
-            print('No loading is performed')
+            print('==========>Train the model from scratch')
     
     def saveKeypoints(self, savePreds, preds, bbox, image_id, predHeatmap=None):
         

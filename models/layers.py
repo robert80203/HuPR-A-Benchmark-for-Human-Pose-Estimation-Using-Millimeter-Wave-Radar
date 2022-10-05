@@ -1,6 +1,9 @@
+import math
 import torch
 import torch.nn as nn
-from models.gcn_networks import *
+import torch.nn.functional as F
+from models.gcn_networks import PRGCN
+
 
 class BasicBlock2D(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0, batchnorm=True, activation=nn.ReLU):
@@ -34,7 +37,6 @@ class BasicBlock2D(nn.Module):
         out = self.relu(out)
         return out
 
-
 class BasicBlock3D(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0, batchnorm=True, activation=nn.ReLU):
         super(BasicBlock3D, self).__init__()
@@ -67,234 +69,32 @@ class BasicBlock3D(nn.Module):
         out = self.relu(out)
         return out
 
-class Block2D(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0, batchnorm=True, activation=nn.ReLU):
-        super(Block2D, self).__init__()
-        if batchnorm:
-            self.main = nn.Sequential(
-                nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=False),
-                nn.BatchNorm2d(out_channels),
-                activation(),
-            )
-        else:   
-            self.main = nn.Sequential(
-                nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=False),
-                activation(),
-            )
-    def forward(self, x):
-        return self.main(x)
-
-class DeconvBlock2D(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0, activation=nn.PReLU):
-        super(DeconvBlock2D, self).__init__()
-        self.main = nn.Sequential(
-            nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride, padding, bias=False),
-            activation(),
-        )
-    def forward(self, x):
-        return self.main(x)
-
-class BasicConv2d(nn.Module):
-
-    def __init__(self, input_channels, output_channels, **kwargs):
-        super().__init__()
-        self.conv = nn.Conv2d(input_channels, output_channels, bias=False, **kwargs)
-        self.bn = nn.BatchNorm2d(output_channels)
-        self.relu = nn.ReLU(inplace=True)
-
-    def forward(self, x):
-        x = self.conv(x)
-        x = self.bn(x)
-        x = self.relu(x)
-
-        return x
-
-class BasicConv3d(nn.Module):
-
-    def __init__(self, input_channels, output_channels, **kwargs):
-        super().__init__()
-        self.conv = nn.Conv3d(input_channels, output_channels, bias=False, **kwargs)
-        self.bn = nn.BatchNorm3d(output_channels)
-        self.relu = nn.ReLU(inplace=True)
-
-    def forward(self, x):
-        x = self.conv(x)
-        x = self.bn(x)
-        x = self.relu(x)
-
-        return x
-
-#same naive inception module
-class InceptionA(nn.Module):
-
-    def __init__(self, input_channels, pool_features):
-        super().__init__()
-        self.branch1x1 = BasicConv2d(input_channels, 64, kernel_size=1)
-
-        self.branch5x5 = nn.Sequential(
-            BasicConv2d(input_channels, 48, kernel_size=1),
-            BasicConv2d(48, 64, kernel_size=5, padding=2)
-        )
-
-        self.branch3x3 = nn.Sequential(
-            BasicConv2d(input_channels, 64, kernel_size=1),
-            BasicConv2d(64, 96, kernel_size=3, padding=1),
-            BasicConv2d(96, 96, kernel_size=3, padding=1)
-        )
-
-        self.branchpool = nn.Sequential(
-            nn.AvgPool2d(kernel_size=3, stride=1, padding=1),
-            BasicConv2d(input_channels, pool_features, kernel_size=3, padding=1)
-        )
-
-    def forward(self, x):
-
-        #x -> 1x1(same)
-        branch1x1 = self.branch1x1(x)
-
-        #x -> 1x1 -> 5x5(same)
-        branch5x5 = self.branch5x5(x)
-        #branch5x5 = self.branch5x5_2(branch5x5)
-
-        #x -> 1x1 -> 3x3 -> 3x3(same)
-        branch3x3 = self.branch3x3(x)
-
-        #x -> pool -> 1x1(same)
-        branchpool = self.branchpool(x)
-
-        outputs = [branch1x1, branch5x5, branch3x3, branchpool]
-
-        return torch.cat(outputs, 1)
-
-#same naive inception module
-class InceptionA3d(nn.Module):
-
-    def __init__(self, input_channels, pool_features):
-        super().__init__()
-        self.branch1x1 = BasicConv3d(input_channels, 64, kernel_size=1)
-
-        self.branch5x5 = nn.Sequential(
-            BasicConv3d(input_channels, 48, kernel_size=1),
-            BasicConv3d(48, 64, kernel_size=5, padding=2)
-        )
-
-        self.branch3x3 = nn.Sequential(
-            BasicConv3d(input_channels, 64, kernel_size=1),
-            BasicConv3d(64, 96, kernel_size=3, padding=1),
-            BasicConv3d(96, 96, kernel_size=3, padding=1)
-        )
-
-        self.branchpool = nn.Sequential(
-            nn.AvgPool3d(kernel_size=3, stride=1, padding=1),
-            BasicConv3d(input_channels, pool_features, kernel_size=3, padding=1)
-        )
-
-    def forward(self, x):
-
-        #x -> 1x1(same)
-        branch1x1 = self.branch1x1(x)
-
-        #x -> 1x1 -> 5x5(same)
-        branch5x5 = self.branch5x5(x)
-        #branch5x5 = self.branch5x5_2(branch5x5)
-
-        #x -> 1x1 -> 3x3 -> 3x3(same)
-        branch3x3 = self.branch3x3(x)
-
-        #x -> pool -> 1x1(same)
-        branchpool = self.branchpool(x)
-
-        outputs = [branch1x1, branch5x5, branch3x3, branchpool]
-
-        return torch.cat(outputs, 1)
-
-
-class BasicDecoder(nn.Module):
-    def __init__(self, cfg, batchnorm=True, activation=nn.ReLU, backbone=""):
-        super(BasicDecoder, self).__init__()
-        self.numKeypoints = cfg.DATASET.numKeypoints
+class MultiScaleCrossSelfAttentionPRGCN(nn.Module):
+    def __init__(self, cfg, batchnorm=True, activation=nn.ReLU):
+        super(MultiScaleCrossSelfAttentionPRGCN, self).__init__()
+        self.numGroupFrames = cfg.DATASET.numGroupFrames
         self.numFilters = cfg.MODEL.numFilters
-        if "deeper" in backbone:
-            self.decoder = nn.Sequential(
-                BasicBlock2D(self.numFilters*2*16, self.numFilters*2*16, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*2*16, self.numFilters*8, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                nn.Upsample(scale_factor=2.0, mode='bilinear', align_corners=True),
-                BasicBlock2D(self.numFilters*8, self.numFilters*8, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*8, self.numFilters*4, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                nn.Upsample(scale_factor=2.0, mode='bilinear', align_corners=True),
-                BasicBlock2D(self.numFilters*4, self.numFilters*4, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*4, self.numFilters*2, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                nn.Upsample(scale_factor=2.0, mode='bilinear', align_corners=True),
-                BasicBlock2D(self.numFilters*2, self.numFilters*2, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*2, self.numKeypoints, (3, 3), (1, 1), (1, 1), batchnorm, activation)
-            )
-        else:
-            self.decoder = nn.Sequential(
-                BasicBlock2D(self.numFilters*2*8, self.numFilters*2*8, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*2*8, self.numFilters*4, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                nn.Upsample(scale_factor=2.0, mode='bilinear', align_corners=True),
-                BasicBlock2D(self.numFilters*4, self.numFilters*4, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*4, self.numFilters*2, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                nn.Upsample(scale_factor=2.0, mode='bilinear', align_corners=True),
-                BasicBlock2D(self.numFilters*2, self.numFilters*2, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*2, self.numKeypoints, (3, 3), (1, 1), (1, 1), batchnorm, activation)
-            )
-
-        self.sigmoid = nn.Sigmoid()
-    def forward(self, fusedMap):
-        return self.sigmoid(self.decoder(fusedMap)).unsqueeze(2)
-
-
-class BasicDecoderGCN(nn.Module):
-    def __init__(self, cfg, batchnorm=True, activation=nn.ReLU, backbone=""):
-        super(BasicDecoderGCN, self).__init__()
+        self.width = cfg.DATASET.heatmapSize
+        self.height = cfg.DATASET.heatmapSize
         self.numKeypoints = cfg.DATASET.numKeypoints
-        self.numFilters = cfg.MODEL.numFilters
-        self.gcnType = cfg.MODEL.gcnType
-        if "deeper" in backbone:
-            self.decoder = nn.Sequential(
-                BasicBlock2D(self.numFilters*2*16, self.numFilters*2*16, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*2*16, self.numFilters*8, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                nn.Upsample(scale_factor=2.0, mode='bilinear', align_corners=True),
-                BasicBlock2D(self.numFilters*8, self.numFilters*8, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*8, self.numFilters*4, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                nn.Upsample(scale_factor=2.0, mode='bilinear', align_corners=True),
-                BasicBlock2D(self.numFilters*4, self.numFilters*4, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*4, self.numFilters*2, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                nn.Upsample(scale_factor=2.0, mode='bilinear', align_corners=True),
-                BasicBlock2D(self.numFilters*2, self.numFilters*2, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*2, self.numKeypoints, (3, 3), (1, 1), (1, 1), batchnorm, activation)
-            )
-        else:
-            self.decoder = nn.Sequential(
-                BasicBlock2D(self.numFilters*2*8, self.numFilters*2*8, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*2*8, self.numFilters*4, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                nn.Upsample(scale_factor=2.0, mode='bilinear', align_corners=True),
-                BasicBlock2D(self.numFilters*4, self.numFilters*4, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*4, self.numFilters*2, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                nn.Upsample(scale_factor=2.0, mode='bilinear', align_corners=True),
-                BasicBlock2D(self.numFilters*2, self.numFilters*2, (3, 3), (1, 1), (1, 1), batchnorm, activation),
-                BasicBlock2D(self.numFilters*2, self.numKeypoints, (3, 3), (1, 1), (1, 1), batchnorm, activation)
-            )
 
-        self.sigmoid = nn.Sigmoid()
+        self.decoderLayer3 = nn.Sequential(
+            BasicBlock2D(self.numFilters*8*4, self.numFilters*8, 3, 1, 1, batchnorm, activation),
+            BasicBlock2D(self.numFilters*8, self.numFilters*4, 3, 1, 1, batchnorm, activation),
+            nn.Upsample(scale_factor=2.0, mode='bilinear', align_corners=True),
+        )
+        self.decoderLayer2 = nn.Sequential(
+            BasicBlock2D(self.numFilters*4*5, self.numFilters*4, 3, 1, 1, batchnorm, activation),
+            BasicBlock2D(self.numFilters*4, self.numFilters*2, 3, 1 ,1, batchnorm, activation),
+            nn.Upsample(scale_factor=2.0, mode='bilinear', align_corners=True),
+        )
+        self.decoderLayer1 = nn.Sequential(
+            BasicBlock2D(self.numFilters*2*5, self.numFilters*2, 3, 1, 1, batchnorm, activation),
+            BasicBlock2D(self.numFilters*2, self.numFilters, 3, 1, 1, batchnorm, activation),
+            nn.Conv2d(self.numFilters, self.numKeypoints, 1, 1, 0, bias=False),
+        )
+
         A = torch.tensor([
-            # [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],#RightAnkle
-            # [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],#RightKnee
-            # [0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],#RightHip
-            # [0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],#LeftHip
-            # [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],#LeftKnee
-            # [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],#LeftAnkle
-            # [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],#Pelvis
-            # [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0],#chest
-            # [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0],#neck
-            # [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0],#head
-            # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],#rightwrist
-            # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0],#rightelbow
-            # [0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0],#rightshoulder
-            # [0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0],#leftshoulder
-            # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],#leftelbow
-            # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],#leftwrist
             [1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],#RHip
             [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],#RKnee
             [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],#RAnkle
@@ -310,22 +110,108 @@ class BasicDecoderGCN(nn.Module):
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],#RElbow
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]#RWrist
         ], dtype=torch.float).cuda()
-        if 'gcn1' in self.gcnType:
-            self.gcn = GCN1(cfg, A)
-        elif 'gcn2' in self.gcnType:
-            self.gcn = GCN2(cfg, A)
+        self.gcn = PRGCN(cfg, A)
+
+        filterList = [self.numFilters*8, self.numFilters*4, self.numFilters*2]
+        self.phi_cross_hori = nn.ModuleList([nn.Conv2d(i, i, 1, 1, 0, bias=False) for i in filterList])
+        self.theta_cross_hori = nn.ModuleList([nn.Conv2d(i, i, 1, 1, 0, bias=False) for i in filterList])
+        self.phi_cross_vert = nn.ModuleList([nn.Conv2d(i, i, 1, 1, 0, bias=False) for i in filterList])
+        self.theta_cross_vert = nn.ModuleList([nn.Conv2d(i, i, 1, 1, 0, bias=False) for i in filterList])
+        self.phi_self_hori = nn.ModuleList([nn.Conv2d(i, i, 1, 1, 0, bias=False) for i in filterList])
+        self.theta_self_hori = nn.ModuleList([nn.Conv2d(i, i, 1, 1, 0, bias=False) for i in filterList])
+        self.phi_self_vert = nn.ModuleList([nn.Conv2d(i, i, 1, 1, 0, bias=False) for i in filterList])
+        self.theta_self_vert = nn.ModuleList([nn.Conv2d(i, i, 1, 1, 0, bias=False) for i in filterList])
+        self.sigmoid = nn.Sigmoid()
     
-    def forward(self, fusedMap):
-        output = self.decoder(fusedMap)
-        gcnoutput = self.gcn(output)
-        return self.sigmoid(output).unsqueeze(2), gcnoutput
+    def attention(self, k, q, maps):
+        b, c, h, w  = maps.size()
+        k, q = k.view(b, c, h * w), q.view(b, c, h * w)
+        spat_attn = torch.einsum('bij,bik->bjk', (k, q))
+        maps = maps.view(b, c, h * w)
+        maps = torch.einsum('bci,bik->bck', (maps, F.softmax(spat_attn, 1)))
+        maps = maps.view(b, c, h, w)
+        return maps
 
+    def forward(self, ral1maps, ral2maps, ramaps, rel1maps, rel2maps, remaps):
+        ramaps_res = ramaps
+        remaps_res = remaps
+        k3_c_hori = self.phi_cross_hori[0](ramaps)
+        q3_c_vert = self.theta_cross_vert[0](remaps)
+        k3_c_vert = self.phi_cross_vert[0](remaps)
+        q3_c_hori = self.theta_cross_hori[0](ramaps)
+        k3_hori = self.phi_self_hori[0](ramaps)
+        q3_hori = self.theta_self_hori[0](ramaps)
+        k3_vert = self.phi_self_vert[0](remaps)
+        q3_vert = self.theta_self_vert[0](remaps)
+        ramaps_cross = self.attention(k3_c_hori, q3_c_vert, ramaps) + ramaps_res
+        ramaps_self = self.attention(k3_hori, q3_hori, ramaps)
+        remaps_cross = self.attention(k3_c_vert, q3_c_hori, remaps) + remaps_res
+        remaps_self = self.attention(k3_vert, q3_vert, remaps)
+        maps = self.decoderLayer3(torch.cat((ramaps_cross, ramaps_self, remaps_cross, remaps_self), 1)) 
 
+        ral2maps_res = ral2maps
+        rel2maps_res = rel2maps
+        k2_c_hori = self.phi_cross_hori[1](ral2maps)
+        q2_c_vert = self.theta_cross_vert[1](rel2maps)
+        k2_c_vert = self.phi_cross_vert[1](rel2maps)
+        q2_c_hori = self.theta_cross_hori[1](ral2maps)
+        k2_hori = self.phi_self_hori[1](ral2maps)
+        q2_hori = self.theta_self_hori[1](ral2maps)
+        k2_vert = self.phi_self_vert[1](rel2maps)
+        q2_vert = self.theta_self_vert[1](rel2maps)
+        ral2maps_cross = self.attention(k2_c_hori, q2_c_vert, ral2maps) + ral2maps_res
+        ral2maps_self = self.attention(k2_hori, q2_hori, ral2maps)
+        rel2maps_cross = self.attention(k2_c_vert, q2_c_hori, rel2maps) + rel2maps_res
+        rel2maps_self = self.attention(k2_vert, q2_vert, rel2maps)
+        maps = self.decoderLayer2(torch.cat((maps, ral2maps_cross, ral2maps_self, rel2maps_cross, rel2maps_self), 1)) 
 
-if __name__ == '__main__':
-    layer1 = InceptionA3d(192, pool_features=32)
-    layer2 = InceptionA3d(256, pool_features=64)
-    #layer3 = InceptionA(288, pool_features=64)
-    x = torch.randn((2, 192, 5, 32, 32))
-    out = layer1(x)
-    out = layer2(out)
+        ral1maps_res = ral1maps
+        rel1maps_res = rel1maps
+        k1_c_hori = self.phi_cross_hori[2](ral1maps)
+        q1_c_vert = self.theta_cross_vert[2](rel1maps)
+        k1_c_vert = self.phi_cross_vert[2](rel1maps)
+        q1_c_hori = self.theta_cross_hori[2](ral1maps)
+        k1_hori = self.phi_self_hori[2](ral1maps)
+        q1_hori = self.theta_self_hori[2](ral1maps)
+        k1_vert = self.phi_self_vert[2](rel1maps)
+        q1_vert = self.theta_self_vert[2](rel1maps)
+        ral1maps_cross = self.attention(k1_c_hori, q1_c_vert, ral1maps) + ral1maps_res
+        ral1maps_self = self.attention(k1_hori, q1_hori, ral1maps)
+        rel1maps_cross = self.attention(k1_c_vert, q1_c_hori, rel1maps) + rel1maps_res
+        rel1maps_self = self.attention(k1_vert, q1_vert, rel1maps)
+        maps = self.decoderLayer1(torch.cat((maps, ral1maps_cross, ral1maps_self, rel1maps_cross, rel1maps_self), 1)) 
+        gcn_output = self.gcn(maps)
+        return maps, gcn_output
+
+class Encoder3D(nn.Module):
+    def __init__(self, cfg, batchnorm=True, activation=nn.ReLU):
+        super(Encoder3D, self).__init__()
+        #self.numFrames = cfg.DATASET.numFrames
+        self.numGroupFrames = cfg.DATASET.numGroupFrames # for 60
+        self.numFilters = cfg.MODEL.numFilters
+        self.width = cfg.DATASET.heatmapSize
+        self.height = cfg.DATASET.heatmapSize
+        self.layer1 = nn.Sequential(
+            nn.Conv3d(self.numFilters, self.numFilters*2, 3, 1, 1),
+            BasicBlock3D(self.numFilters*2, self.numFilters*2, 3, 1, 1),
+        )
+        self.layer2 = nn.Sequential(
+            nn.Upsample(scale_factor=0.5, mode='trilinear', align_corners=True),
+            BasicBlock3D(self.numFilters*2, self.numFilters*4, 3, 1, 1),
+            BasicBlock3D(self.numFilters*4, self.numFilters*4, 3, 1, 1),
+        )
+        self.layer3 = nn.Sequential(
+            nn.Upsample(scale_factor=0.5, mode='trilinear', align_corners=True),
+            BasicBlock3D(self.numFilters*4, self.numFilters*8, 3, 1, 1),
+            BasicBlock3D(self.numFilters*8, self.numFilters*8, 3, 1, 1),
+        )
+        self.l1temporalMerge = nn.Conv3d(self.numFilters*2, self.numFilters*2, (self.numGroupFrames, 1, 1), 1, 0, bias=False)
+        self.l2temporalMerge = nn.Conv3d(self.numFilters*4, self.numFilters*4, (self.numGroupFrames//2, 1, 1), 1, 0, bias=False)
+        self.temporalMerge = nn.Conv3d(self.numFilters*8, self.numFilters*8, (self.numGroupFrames//4, 1, 1), 1, 0, bias=False)
+    
+    def forward(self, maps):
+        l1maps = self.layer1(maps)
+        l2maps = self.layer2(l1maps)
+        l3maps = self.layer3(l2maps)
+        maps = self.temporalMerge(l3maps).squeeze(2)
+        return self.l1temporalMerge(l1maps).squeeze(2), self.l2temporalMerge(l2maps).squeeze(2), maps
