@@ -10,7 +10,7 @@ DATASET:
     numFrames: 8 # num of chirps in one frame to be processed
     numGroupFrames: 8 # num of frames to be processed
     numChirps: 16 # num of chirps captured by radar sensors, should always be 16
-    dataDir: '' #'../radar_skeleton_estimation_iwr1843/data/20220623'
+    dataDir: 'data/HuPR' #'../radar_skeleton_estimation_iwr1843/data/20220623'
     testName: [15, 16, 38, 40, 41, 42,
                17, 39,  244, 245, 246, 249, 250, 251, 252, 253, 254,
                247, 248, 255, 256]
@@ -51,6 +51,6 @@ TRAINING:
     optimizer: "adam"
 TEST:
     batchSize: 32
-    plotImgDir: '' #"20220623"
+    plotImgDir: ''
 SETUP:
     numWorkers: 4

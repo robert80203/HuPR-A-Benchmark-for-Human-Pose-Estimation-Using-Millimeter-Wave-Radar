@@ -1,25 +1,43 @@
 #  2D Human Pose Estimation using mmWave Radar
 
 ## Preparation
-Create visualization/, logs/, data/
+
+Setup the conda environment.
+
 ```
-mkdir visualization logs data
+conda env create -f environment.yml
 ```
 
-Specify the root of dataset (YOUR_DATASET_NAME) in YOUR_CONFIG.yaml -> DATASET -> dataDir
+Run setup.py to generate the directories needed
 
-Each dataset structure will be like:
+Dowload the dataset and annotations from the following link
+[HuPR dataset]()
+
+Extract the dataset in the 'preprocessing/raw_data/iwr1843'
+
+
+## Preprocessing
+
+Preprocess the raw radar data collected by two radar sensors (IWR1843Boost)
+
 ```
-YOUR_DATASET_NAME
+cd preprocessing
+python process_iwr1843
+```
+
+Each dataset structure should be aligned in this way:
+```
+data/HuPR
+    - hrnet_annot_test.json
+    - hrnet_annot_val.json
+    - hrnet_annot_train.json
     - single_1
-        - annot
-            - hrnet_annot.json
         - hori
             - 000000000.npy
             .
             .
             .
-        - verti
+        - vert
             - 000000000.npy
             .
             .
@@ -30,6 +48,8 @@ YOUR_DATASET_NAME
     .
     .
 ```
+
+Specify the root of dataset HuPR in YOUR_CONFIG.yaml -> DATASET -> dataDir
 
 ## Training
 ```

@@ -54,37 +54,40 @@ def generateGTAnnot(cfg, phase='train'):
             ]
     }]
     group_idx = eval('cfg.DATASET.'+phase+'Name')
-    for idx in group_idx:
-        with open(os.path.join(cfg.DATASET.dataDir, 'single_%d/annot/hrnet_annot.json'% idx)) as fp:
-            mmlab = json.load(fp)
-        for block in mmlab:
-            image_id = int(block['image'][:-4]) + idx * 100000 #image_id = id
-            joints = np.array(block["joints"])
-            bbox = block["bbox"]
-            visIdx = np.ones((14 , 1)) + 1.0 #2 is labeled and visible
-            joints = np.concatenate((joints, visIdx), axis=1).reshape(len(joints) * 3).tolist()
-            area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]) / 2
-            annot["annotations"].append({
-                "num_keypoints": 14,
-                "area": area,
-                "iscrowd": 0,
-                "keypoints": joints,
-                "image_id": image_id,
-                "bbox": [bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]],
-                "category_id": 1,
-                "id": image_id,
-            })
-            annot["images"].append({
-                "license": -1,
-                "file_name": block['image'],
-                "coco_url": "None",
-                "height": 256,
-                "width": 256,
-                "date_captured": "None",
-                "flickr_url": "None",
-                "id": image_id
-            })
-        print('Generate GTs for single_%d for %s stage'%(idx, phase))
+    #for idx in group_idx:
+    # with open(os.path.join(cfg.DATASET.dataDir, 'single_%d/annot/hrnet_annot.json'% idx)) as fp:
+    #     mmlab = json.load(fp)
+    with open(os.path.join(cfg.DATASET.dataDir, 'hrnet_annot_%s.json' % phase)) as fp:
+        annot_files = json.load(fp)
+        for i in range(len(annot_files)):
+            for block in annot_files[i]:
+                image_id = int(block['image'][:-4]) + group_idx[i] * 100000 #image_id = id
+                joints = np.array(block["joints"])
+                bbox = block["bbox"]
+                visIdx = np.ones((14 , 1)) + 1.0 #2 is labeled and visible
+                joints = np.concatenate((joints, visIdx), axis=1).reshape(len(joints) * 3).tolist()
+                area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]) / 2
+                annot["annotations"].append({
+                    "num_keypoints": 14,
+                    "area": area,
+                    "iscrowd": 0,
+                    "keypoints": joints,
+                    "image_id": image_id,
+                    "bbox": [bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]],
+                    "category_id": 1,
+                    "id": image_id,
+                })
+                annot["images"].append({
+                    "license": -1,
+                    "file_name": block['image'],
+                    "coco_url": "None",
+                    "height": 256,
+                    "width": 256,
+                    "date_captured": "None",
+                    "flickr_url": "None",
+                    "id": image_id
+                })
+            print('Generate GTs for single_%d for %s stage'%(group_idx[i], phase))
     with open(os.path.join(cfg.DATASET.dataDir, '%s_gt.json'%phase), 'w') as fp:
         json.dump(annot, fp)
 
