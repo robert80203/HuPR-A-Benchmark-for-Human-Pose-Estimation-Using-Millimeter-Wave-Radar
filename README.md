@@ -11,7 +11,7 @@ conda env create -f environment.yml
 Run setup.py to generate the directories needed
 
 Dowload the dataset and annotations from the following link
-[HuPR dataset]()
+[HuPR dataset](https://drive.google.com/drive/folders/1-8f1eyjhaqly3RrmzAyKu99mObYsIkYG)
 
 Extract the dataset in the 'preprocessing/raw_data/iwr1843'
 
