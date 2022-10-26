@@ -1,4 +1,21 @@
-#  2D Human Pose Estimation using mmWave Radar
+#  HuPR: A Benchmark for Human Pose Estimation Using Millimeter Wave Radar
+
+This is the official implementation of [HuPR: A Benchmark for Human Pose Estimation Using Millimeter Wave Radar](https://arxiv.org/abs/2210.12564)
+
+Please cite our WACV 2023 paper if our paper/implementation is helpful for your research:
+```
+@misc{https://doi.org/10.48550/arxiv.2210.12564,
+  doi = {10.48550/ARXIV.2210.12564},
+  url = {https://arxiv.org/abs/2210.12564},
+  author = {Lee, Shih-Po and Kini, Niraj Prakash and Peng, Wen-Hsiao and Ma, Ching-Wen and Hwang, Jenq-Neng},
+  keywords = {Computer Vision and Pattern Recognition (cs.CV), Artificial Intelligence (cs.AI)},
+  title = {HuPR: A Benchmark for Human Pose Estimation Using Millimeter Wave Radar},
+  publisher = {arXiv},
+  year = {2022},
+  copyright = {Creative Commons Attribution Non Commercial Share Alike 4.0 International}
+}
+
+```
 
 ## Preparation
 
