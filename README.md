@@ -29,6 +29,14 @@ Run setup.py to generate the directories needed
 
 Dowload the dataset and annotations from the following link
 [HuPR dataset](https://drive.google.com/drive/folders/1-8f1eyjhaqly3RrmzAyKu99mObYsIkYG)
+Please provide the following information when requesting the dataset
+- Your Full Name
+- Institution
+- Advisor/Supervisor Name
+- Currention Position Title
+- Emaill Address (with institutional domain name)
+- Purpose
+
 
 Extract the dataset in the 'preprocessing/raw_data/iwr1843'
 
