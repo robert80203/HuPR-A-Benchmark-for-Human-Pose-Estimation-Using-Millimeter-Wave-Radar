@@ -29,11 +29,11 @@ Run setup.py to generate the directories needed
 
 Dowload the dataset and annotations from the following link
 [HuPR dataset](https://drive.google.com/drive/folders/1-8f1eyjhaqly3RrmzAyKu99mObYsIkYG)
-Please provide the following information when requesting the dataset
+Please request access with your institutional email id and please provide following information
 - Your Full Name
 - Institution
 - Advisor/Supervisor Name
-- Currention Position Title
+- Current Position/Title
 - Emaill Address (with institutional domain name)
 - Purpose
 
@@ -93,6 +93,7 @@ python main.py --dir <YOUR_DIR> --config <YOUR_CONFIG>.yaml --eval
 ```
 YOUR_DIR specifies the diretory that will be loaded from logs/
 The loaded weighted should be named as 'model_best.pth'
+Download the trained weight from the [drive](https://drive.google.com/file/d/16pILmHWTxZJxoXjVImP_zhNgpBWcWr2E/view?usp=sharing)
 
 Evaluate model performance and visualize the results
 ```
