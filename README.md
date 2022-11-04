@@ -92,7 +92,9 @@ python main.py --config mscsa_prgcn.yaml --dir mscsa_prgcn
 python main.py --dir <YOUR_DIR> --config <YOUR_CONFIG>.yaml --eval
 ```
 YOUR_DIR specifies the diretory that will be loaded from logs/
+
 The loaded weighted should be named as 'model_best.pth'
+
 Download the trained weight from the [drive](https://drive.google.com/file/d/16pILmHWTxZJxoXjVImP_zhNgpBWcWr2E/view?usp=sharing)
 
 Evaluate model performance and visualize the results
