@@ -77,7 +77,7 @@ data/HuPR
 
 Specify the root of dataset HuPR in YOUR_CONFIG.yaml -> DATASET -> dataDir
 
-Download the PythonAPI of COCO (here)[https://github.com/cocodataset/cocoapi]
+Download the PythonAPI of COCO [here](https://github.com/cocodataset/cocoapi)
 
 Replace coco.py and cocoeval.py with misc/coco.py and misc/cocoeval.py respectively
 
