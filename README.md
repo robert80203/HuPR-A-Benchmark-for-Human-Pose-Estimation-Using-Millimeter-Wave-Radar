@@ -29,6 +29,7 @@ Run setup.py to generate the directories needed
 
 Dowload the dataset and annotations from the following link
 [HuPR dataset](https://drive.google.com/drive/folders/1-8f1eyjhaqly3RrmzAyKu99mObYsIkYG)
+
 Please request access with your institutional email id and please provide following information
 - Your Full Name
 - Institution
@@ -75,6 +76,10 @@ data/HuPR
 ```
 
 Specify the root of dataset HuPR in YOUR_CONFIG.yaml -> DATASET -> dataDir
+
+Download the PythonAPI of COCO (here)[https://github.com/cocodataset/cocoapi]
+
+Replace coco.py and cocoeval.py with misc/coco.py and misc/cocoeval.py respectively
 
 ## Training
 ```
