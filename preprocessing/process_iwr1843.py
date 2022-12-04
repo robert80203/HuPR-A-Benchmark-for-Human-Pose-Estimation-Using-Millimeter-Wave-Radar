@@ -39,7 +39,7 @@ class RadarObject():
                                  'raw_data/' + self.sensorType + '/' + self.root + '/single_' + str(i) + '/vert']
             saveDirName = '../data/' + self.saveRoot + '/single_' + str(i)
             rgbFileName = 'frames/' + self.root + '/single_' + str(i) + '/processed/images'
-            jointsFileName = '../data/' + self.saveRoot + '/single_' + str(i) + '/annot/hrnet_annot.json'
+            #jointsFileName = '../data/' + self.saveRoot + '/single_' + str(i) + '/annot/hrnet_annot.json'
             self.radarDataFileNameGroup.append(radarDataFileName)
             self.saveDirNameGroup.append(saveDirName)
             self.rgbFileNameGroup.append(rgbFileName)
@@ -217,5 +217,5 @@ if __name__ == "__main__":
     radarObject = RadarObject()
     if not visualization:
         radarObject.processRadarDataHoriVert()
-    else:
-        radarObject.loadDataPlot()
+    #else:
+    #    radarObject.loadDataPlot()
