@@ -43,7 +43,7 @@ class RadarObject():
             self.radarDataFileNameGroup.append(radarDataFileName)
             self.saveDirNameGroup.append(saveDirName)
             self.rgbFileNameGroup.append(rgbFileName)
-            self.jointsFileNameGroup.append(jointsFileName)
+            #self.jointsFileNameGroup.append(jointsFileName)
     
     def postProcessFFT3D(self, dataFFT):
         dataFFT = np.fft.fftshift(dataFFT, axes=(0, 1,))
