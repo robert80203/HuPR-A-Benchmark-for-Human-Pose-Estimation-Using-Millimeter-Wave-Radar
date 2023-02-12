@@ -98,7 +98,7 @@ YOUR_DIR specifies the diretory that will be loaded from logs/
 
 The loaded weighted should be named as 'model_best.pth'
 
-Download the trained weight from the [drive](https://drive.google.com/file/d/16pILmHWTxZJxoXjVImP_zhNgpBWcWr2E/view?usp=sharing)
+Download the trained weight from the [drive](https://drive.google.com/file/d/1Hmi2mw_KuSBCS4PVKI7dGWrRmtpKHkJI/view?usp=sharing)
 
 Evaluate model performance and visualize the results
 ```
