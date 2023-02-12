@@ -90,6 +90,8 @@ e.g.
 python main.py --config mscsa_prgcn.yaml --dir mscsa_prgcn
 ```
 
+To facilitate the training speed, you may set -sr 10 to the training command
+
 ## Evaluation
 ```
 python main.py --dir <YOUR_DIR> --config <YOUR_CONFIG>.yaml --eval
