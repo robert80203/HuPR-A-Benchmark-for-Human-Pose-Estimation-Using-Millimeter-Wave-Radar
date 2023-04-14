@@ -1,4 +1,4 @@
-name: pytorch-1.4
+name: pytorch-1.5
 channels:
   - tensorly
   - pytorch
@@ -48,7 +48,7 @@ dependencies:
   - python=3.7.10=hdb3f193_0
   - python-dateutil=2.8.2=pyhd8ed1ab_0
   - python_abi=3.7=1_cp37m
-  - pytorch=1.4.0=py3.7_cuda10.1.243_cudnn7.6.3_0
+  - pytorch=1.5.1=py3.7_cuda10.1.243_cudnn7.6.3_0
   - pyyaml=5.3.1=py37hb5d75c8_1
   - readline=8.1=h27cfd23_0
   - scikit-learn=0.23.2=py37h0573a6f_0
@@ -59,7 +59,7 @@ dependencies:
   - tensorly=0.6.0=py_0
   - threadpoolctl=2.1.0=pyh5ca1d4c_0
   - tk=8.6.10=hbc83047_0
-  - torchvision=0.5.0=py37_cu101
+  - torchvision=0.6.1=py37_cu101
   - tornado=6.1=py37h4abf009_0
   - tqdm=4.60.0=pyhd8ed1ab_0
   - wheel=0.36.2=pyhd3eb1b0_0
@@ -67,4 +67,4 @@ dependencies:
   - yaml=0.2.5=h7b6447c_0
   - zlib=1.2.11=h7b6447c_3
   - zstd=1.4.9=haebb681_0
-prefix: /home/robert80203/.conda/envs/pytorch-1.4
+prefix: /home/robert80203/.conda/envs/pytorch-1.5

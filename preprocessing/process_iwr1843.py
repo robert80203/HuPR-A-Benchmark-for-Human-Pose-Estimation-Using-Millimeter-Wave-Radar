@@ -32,9 +32,10 @@ class RadarObject():
         self.xIndices = [-45, -30, -15, 0, 15, 30, 45]
         self.yIndices = [i * 10 for i in range(10)]
         self.initialize(numGroup)
-
+        
+    ### ssh中斷後臨時修改 記得i要改回1
     def initialize(self, numGroup):
-        for i in range(1, numGroup + 1):
+        for i in range(55, numGroup + 1):
             radarDataFileName = ['raw_data/' + self.sensorType + '/' + self.root + '/single_' + str(i) + '/hori', 
                                  'raw_data/' + self.sensorType + '/' + self.root + '/single_' + str(i) + '/vert']
             saveDirName = '../data/' + self.saveRoot + '/single_' + str(i)

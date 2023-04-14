@@ -2,12 +2,17 @@ import os
 
 num = 276
 
-os.mkdir('data')
-os.mkdir('data/HuPR')
-os.mkdir('visualization')
-os.mkdir('logs')
-os.mkdir('preprocessing/raw_data')
-os.mkdir('preprocessing/raw_data/iwr1843')
+
+try:
+    os.mkdir('data')
+    os.mkdir('data/HuPR')
+    os.mkdir('visualization')
+    os.mkdir('logs')
+    os.mkdir('preprocessing/raw_data')
+    os.mkdir('preprocessing/raw_data/iwr1843')
+except ValueError as err:
+    print(err)
+
 
 for i in range(1, num+1):
     root = 'data/HuPR/'
