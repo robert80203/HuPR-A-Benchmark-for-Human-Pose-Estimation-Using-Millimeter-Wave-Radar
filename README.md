@@ -1,6 +1,10 @@
 #  HuPR: A Benchmark for Human Pose Estimation Using Millimeter Wave Radar
 
+==============================================================
+
 **New update (02/11/2025), we have updated the download link**
+
+==============================================================
 
 This is the official implementation of [HuPR: A Benchmark for Human Pose Estimation Using Millimeter Wave Radar](https://arxiv.org/abs/2210.12564)
 
