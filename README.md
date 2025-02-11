@@ -1,5 +1,7 @@
 #  HuPR: A Benchmark for Human Pose Estimation Using Millimeter Wave Radar
 
+**New updated (02/11/2025), We have updated the download link of the dataset.**
+
 This is the official implementation of [HuPR: A Benchmark for Human Pose Estimation Using Millimeter Wave Radar](https://arxiv.org/abs/2210.12564)
 
 Please cite our WACV 2023 paper if our paper/implementation is helpful for your research:
@@ -26,7 +28,7 @@ conda env create -f environment.yml
 Run setup.py to generate the directories needed
 
 Dowload the dataset and annotations from the following link
-[HuPR dataset](https://drive.google.com/drive/folders/1-8f1eyjhaqly3RrmzAyKu99mObYsIkYG)
+[HuPR dataset](https://huggingface.co/datasets/nirajpkini/HuPR)
 
 Please request access with your institutional email id and please provide following information
 - Your Full Name
